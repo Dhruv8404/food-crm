@@ -1,0 +1,14 @@
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('menu/', views.menu_list, name='menu-list'),
+    path('auth/customer/register/', views.customer_register, name='customer-register'),
+    path('auth/customer/verify/', views.customer_verify, name='customer-verify'),
+    path('auth/customer/login/', views.customer_login, name='customer-login'),
+    path('auth/staff/login/', views.staff_login, name='staff-login'),
+    path('orders/', views.OrderListCreateView.as_view(), name='order-list-create'),
+    path('orders/<str:pk>/', views.OrderUpdateView.as_view(), name='order-update'),
+    path('tables/generate/', views.generate_table, name='generate-table'),
+    path('tables/verify/', views.verify_table, name='verify-table'),
+]
