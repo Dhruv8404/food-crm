@@ -1,8 +1,16 @@
-# TODO: Fix 404 Errors in Food-Order System
+# TODO: Implement Admin Billing Page
 
-## Steps to Complete
+## Pending Tasks
+- [ ] Test the cart section in menu page for customers (add multiple items, adjust qty, place order)
 
-- [x] Update next.config.mjs to add rewrites for SPA routing support
-- [x] Update backend/foodapp/views.py to change QR URL generation (remove /scan prefix)
-- [x] Update food-crm/app/AppContent.tsx to change scan route from /scan/:hash/:table to /:hash/:table
-- [ ] Test the changes by running the frontend and backend servers and checking for 404s
+## Completed Tasks
+- [x] Analyze project structure and gather information from backend/frontend files
+- [x] Create detailed plan for billing page implementation
+- [x] Get user approval for the plan
+- [x] Add "Billing" navigation link in navbar for admin users only
+- [x] Create new billing page component (food-crm/routes/billing-page.tsx) with table for pending bills
+- [x] Add protected route for /admin/billing in AppContent.tsx
+- [x] Add "Back to Admin" button in billing page
+- [x] Test the billing page functionality (fetch, sort, mark paid)
+- [x] Move Order View to separate /admin/orders page
+- [x] Create Order Preparation page at /admin/prepare for pending orders

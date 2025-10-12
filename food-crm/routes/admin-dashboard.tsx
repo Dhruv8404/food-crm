@@ -76,7 +76,6 @@ export default function AdminDashboard() {
     }
   }
 
-  const readyToBill = state.orders.filter((o) => o.status === "completed")
   const history = state.orders.filter((o) => o.status === "paid")
 
   const customerSummary = Object.values(
@@ -153,43 +152,7 @@ export default function AdminDashboard() {
         )}
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-4">
-        <h2 className="text-lg font-semibold">Completed Orders (Bill & Mark Paid)</h2>
-        <div className="mt-3 space-y-3">
-          {readyToBill.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No completed orders.</p>
-          ) : (
-            readyToBill.map((o) => (
-              <div key={o.id} className="rounded-lg border border-border p-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-medium">Order #{o.id}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {o.customer.phone} • {o.customer.email}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="font-semibold">${o.total.toFixed(2)}</div>
-                    <button
-                      onClick={() => markPaid(o.id)}
-                      className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground"
-                    >
-                      Mark as Paid
-                    </button>
-                  </div>
-                </div>
-                <ul className="mt-2 text-sm text-muted-foreground">
-                  {o.items.map((i) => (
-                    <li key={i.id}>
-                      {i.name} × {i.qty}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
+
 
       <div className="rounded-xl border border-border bg-card p-4">
         <h2 className="text-lg font-semibold">Customer History</h2>

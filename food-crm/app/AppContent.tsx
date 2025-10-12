@@ -10,6 +10,9 @@ import AuthPage from "@/routes/auth-page"
 import CustomerDashboard from "@/routes/customer-dashboard"
 import ChefDashboard from "@/routes/chef-dashboard"
 import AdminDashboard from "@/routes/admin-dashboard"
+import AdminOrders from "@/routes/admin-orders"
+import AdminPrepare from "@/routes/admin-prepare"
+import BillingPage from "@/routes/billing-page"
 import LoginPage from "@/routes/login-page"
 import ProtectedRoute from "@/components/protected-route"
 
@@ -47,6 +50,30 @@ export default function AppContent() {
                 element={
                   <ProtectedRoute roles={["admin"]}>
                     <AdminDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/billing"
+                element={
+                  <ProtectedRoute roles={["admin"]}>
+                    <BillingPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/orders"
+                element={
+                  <ProtectedRoute roles={["admin"]}>
+                    <AdminOrders />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/prepare"
+                element={
+                  <ProtectedRoute roles={["admin"]}>
+                    <AdminPrepare />
                   </ProtectedRoute>
                 }
               />

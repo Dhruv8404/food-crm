@@ -9,7 +9,13 @@ export default function ScanPage() {
   const [code, setCode] = useState("")
   const navigate = useNavigate()
   const params = useParams()
-  const { setCurrentTable } = useApp()
+  const { setCurrentTable, state } = useApp()
+
+  useEffect(() => {
+    if (state.user.role === 'admin') {
+      navigate('/admin')
+    }
+  }, [state.user.role, navigate])
 
   useEffect(() => {
     const table = params.table

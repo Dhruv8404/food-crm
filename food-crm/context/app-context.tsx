@@ -188,7 +188,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       table_no: state.currentTable,
     }
     try {
-      await fetch(API_BASE + 'orders/', {
+      const response = await fetch(API_BASE + 'orders/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -196,17 +196,28 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         },
         body: JSON.stringify(order)
       })
+      if (response.ok) {
+        setState((s) => ({ ...s, orders: [order, ...s.orders], cart: [] }))
+        return order
+      } else if (response.status === 401 || response.status === 403) {
+        alert('Session expired. Please log in again.')
+        return null
+      } else {
+        console.error('Failed to create order:', response.status)
+        alert('Failed to place order. Please try again.')
+        return null
+      }
     } catch (e) {
       console.error('Failed to create order:', e)
+      alert('Failed to place order. Please try again.')
+      return null
     }
-    setState((s) => ({ ...s, orders: [order, ...s.orders], cart: [] }))
-    return order
   }
 
   const markPrepared = async (orderId: string) => {
     if (!state.token) return
     try {
-      await fetch(API_BASE + `orders/${orderId}/`, {
+      const response = await fetch(API_BASE + `orders/${orderId}/`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -214,7 +225,13 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         },
         body: JSON.stringify({ status: "completed" })
       })
-      await fetchOrders()
+      if (response.ok) {
+        await fetchOrders()
+      } else if (response.status === 401 || response.status === 403) {
+        alert('Session expired. Please log in again.')
+      } else {
+        console.error('Failed to mark prepared:', response.status)
+      }
     } catch (e) {
       console.error('Failed to mark prepared:', e)
     }
@@ -223,7 +240,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const markPreparing = async (orderId: string) => {
     if (!state.token) return
     try {
-      await fetch(API_BASE + `orders/${orderId}/`, {
+      const response = await fetch(API_BASE + `orders/${orderId}/`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -231,7 +248,13 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         },
         body: JSON.stringify({ status: "preparing" })
       })
-      await fetchOrders()
+      if (response.ok) {
+        await fetchOrders()
+      } else if (response.status === 401 || response.status === 403) {
+        alert('Session expired. Please log in again.')
+      } else {
+        console.error('Failed to mark preparing:', response.status)
+      }
     } catch (e) {
       console.error('Failed to mark preparing:', e)
     }
@@ -240,7 +263,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const markPaid = async (orderId: string) => {
     if (!state.token) return
     try {
-      await fetch(API_BASE + `orders/${orderId}/`, {
+      const response = await fetch(API_BASE + `orders/${orderId}/`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -248,7 +271,13 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         },
         body: JSON.stringify({ status: "paid" })
       })
-      await fetchOrders()
+      if (response.ok) {
+        await fetchOrders()
+      } else if (response.status === 401 || response.status === 403) {
+        alert('Session expired. Please log in again.')
+      } else {
+        console.error('Failed to mark paid:', response.status)
+      }
     } catch (e) {
       console.error('Failed to mark paid:', e)
     }
