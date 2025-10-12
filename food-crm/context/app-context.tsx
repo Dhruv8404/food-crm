@@ -83,7 +83,16 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [state, setState] = useState<State>(() => {
     if (typeof window === "undefined") return initialState
     const raw = window.localStorage.getItem(LS_KEY)
-    return raw ? JSON.parse(raw) : initialState
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw)
+        if (!Array.isArray(parsed.orders)) parsed.orders = []
+        return parsed
+      } catch {
+        return initialState
+      }
+    }
+    return initialState
   })
 
   useEffect(() => {
@@ -106,14 +115,22 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   }, [])
 
   const fetchOrders = async () => {
-    if (!state.token) return
+    if (!state.token) {
+      setState(s => ({ ...s, orders: [] }))
+      return
+    }
     try {
       const res = await fetch(API_BASE + 'orders/', {
         headers: { 'Authorization': `Bearer ${state.token}` }
       })
-      const data = await res.json()
+      if (res.status === 401 || res.status === 403) {
+        logout()
+        return
+      }
+      const data = res.ok ? await res.json() : []
       setState(s => ({ ...s, orders: data }))
     } catch (e) {
+      setState(s => ({ ...s, orders: [] }))
       console.error('Failed to fetch orders:', e)
     }
   }

@@ -11,4 +11,5 @@ urlpatterns = [
     path('orders/<str:pk>/', views.OrderUpdateView.as_view(), name='order-update'),
     path('tables/generate/', views.generate_table, name='generate-table'),
     path('tables/verify/', views.verify_table, name='verify-table'),
+    path('tables/<str:table_no>/delete/', views.delete_table, name='delete-table'),
 ]

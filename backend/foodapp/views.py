@@ -82,6 +82,8 @@ def staff_login(request):
         if user:
             if user.is_staff:  # Assuming admin/chef are staff users
                 role = 'admin' if user.is_superuser else 'chef'
+                user.role = role
+                user.save()
                 token = RefreshToken.for_user(user).access_token
                 return Response({'message': 'Login successful', 'role': role, 'token': str(token)}, status=status.HTTP_200_OK)
         return Response({'error': 'Invalid credentials'}, status.HTTP_401_UNAUTHORIZED)
@@ -146,39 +148,65 @@ def generate_table(request):
     if request.user.role != 'admin':
         return Response({'error': 'Only admins can generate tables'}, status=status.HTTP_403_FORBIDDEN)
 
-    table_no = request.data.get('table_no')
-    if table_no:
-        # Check if table already exists
-        if Table.objects.filter(table_no=table_no).exists():
-            return Response({'error': f'Table {table_no} already exists'}, status=status.HTTP_400_BAD_REQUEST)
-    else:
-        # Get the next table number
-        last_table = Table.objects.order_by('-id').first()
-        if last_table:
-            # Extract number from 'T1' -> 1
+    range_input = request.data.get('range', '1')
+    table_nos = []
+
+    if '-' in range_input:
+        # Range like T1-T5
+        start, end = range_input.split('-')
+        if start.startswith('T') and end.startswith('T'):
             try:
-                num = int(last_table.table_no[1:]) + 1
+                start_num = int(start[1:])
+                end_num = int(end[1:])
+                if start_num > end_num or end_num - start_num > 50:
+                    return Response({'error': 'Invalid range'}, status=status.HTTP_400_BAD_REQUEST)
+                table_nos = [f'T{i}' for i in range(start_num, end_num + 1)]
             except ValueError:
-                num = 1
+                return Response({'error': 'Invalid range format'}, status=status.HTTP_400_BAD_REQUEST)
         else:
-            num = 1
-        table_no = f'T{num}'
+            return Response({'error': 'Range must be like T1-T5'}, status=status.HTTP_400_BAD_REQUEST)
+    elif range_input.startswith('T'):
+        # Single table like T1
+        table_nos = [range_input]
+    else:
+        # Number, generate that many sequential
+        try:
+            count = int(range_input)
+            if count < 1 or count > 50:
+                return Response({'error': 'Count must be between 1 and 50'}, status=status.HTTP_400_BAD_REQUEST)
+            last_table = Table.objects.order_by('-id').first()
+            if last_table:
+                try:
+                    num = int(last_table.table_no[1:]) + 1
+                except ValueError:
+                    num = 1
+            else:
+                num = 1
+            table_nos = [f'T{num + i}' for i in range(count)]
+        except ValueError:
+            return Response({'error': 'Invalid input'}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Generate unique hash
-    hash_value = secrets.token_hex(16)
+    results = []
+    for table_no in table_nos:
+        if Table.objects.filter(table_no=table_no).exists():
+            table = Table.objects.get(table_no=table_no)
+            hash_value = secrets.token_hex(16)
+            table.hash = hash_value
+            table.save()
+        else:
+            hash_value = secrets.token_hex(16)
+            table = Table.objects.create(table_no=table_no, hash=hash_value)
 
-    # Create table
-    table = Table.objects.create(table_no=table_no, hash=hash_value)
+        base_url = getattr(settings, 'BASE_URL', 'http://localhost:3000')
+        url = f"{base_url}/{hash_value}/{table.table_no}"
 
-    # Generate URL (use localhost for dev, in prod use env)
-    base_url = getattr(settings, 'BASE_URL', 'http://localhost:3000')
-    url = f"{base_url}/scan?table={table_no}&hash={hash_value}"
+        results.append({
+            'table_no': table.table_no,
+            'hash': hash_value,
+            'url': url
+        })
 
-    return Response({
-        'table_no': table_no,
-        'hash': hash_value,
-        'url': url
-    }, status=status.HTTP_201_CREATED)
+    return Response(results, status=status.HTTP_201_CREATED)
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
@@ -192,3 +220,15 @@ def verify_table(request):
         return Response({'valid': True, 'table_no': table.table_no})
     except Table.DoesNotExist:
         return Response({'valid': False}, status=status.HTTP_404_NOT_FOUND)
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_table(request, table_no):
+    if request.user.role != 'admin':
+        return Response({'error': 'Only admins can delete tables'}, status=status.HTTP_403_FORBIDDEN)
+    try:
+        table = Table.objects.get(table_no=table_no)
+        table.delete()
+        return Response({'message': f'Table {table_no} deleted successfully'}, status=status.HTTP_200_OK)
+    except Table.DoesNotExist:
+        return Response({'error': 'Table not found'}, status=status.HTTP_404_NOT_FOUND)

@@ -7,30 +7,34 @@ import { useApp } from "@/context/app-context"
 
 export default function AdminDashboard() {
   const { state, markPaid } = useApp()
-  const [qrData, setQrData] = useState<{ table_no: string; hash: string; url: string } | null>(null)
+  const [qrData, setQrData] = useState<{ table_no: string; hash: string; url: string }[]>([])
   const [generating, setGenerating] = useState(false)
-  const [tableInput, setTableInput] = useState('')
-  const qrRef = useRef<HTMLDivElement>(null)
+  const [rangeInput, setRangeInput] = useState('1')
+  const qrRefs = useRef<(HTMLDivElement | null)[]>([])
 
   const generateQR = async () => {
+    if (state.user.role !== 'admin' || !state.token) {
+      alert('Please log in as admin first.')
+      return
+    }
     setGenerating(true)
     try {
-      const body: any = {}
-      if (tableInput.trim()) {
-        body.table_no = tableInput.trim()
-      }
-      const response = await fetch('/api/tables/generate/', {
+      const body: any = { range: rangeInput.trim() || '1' }
+      const response = await fetch('http://127.0.0.1:8000/api/tables/generate/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${state.token}`,
         },
         body: JSON.stringify(body),
       })
       if (response.ok) {
         const data = await response.json()
         setQrData(data)
-        setTableInput('')  // Clear input after success
+        setRangeInput('1')
+      } else if (response.status === 401 || response.status === 403) {
+        alert('Session expired. Please log in again.')
+        // Optionally, call logout here if available
       } else {
         const error = await response.json()
         alert(error.error || 'Failed to generate QR')
@@ -42,13 +46,33 @@ export default function AdminDashboard() {
     setGenerating(false)
   }
 
-  const downloadQR = async () => {
-    if (qrRef.current && qrData) {
-      const canvas = await html2canvas(qrRef.current)
+  const downloadQR = async (index: number) => {
+    if (qrRefs.current[index] && qrData[index]) {
+      const canvas = await html2canvas(qrRefs.current[index])
       const link = document.createElement('a')
-      link.download = `table-${qrData.table_no}.png`
+      link.download = `table-${qrData[index].table_no}.png`
       link.href = canvas.toDataURL('image/png')
       link.click()
+    }
+  }
+
+  const deleteTable = async (table_no: string, index: number) => {
+    if (!confirm(`Delete table ${table_no}?`)) return
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/api/tables/${table_no}/delete/`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${state.token}`,
+        },
+      })
+      if (response.ok) {
+        setQrData(prev => prev.filter((_, i) => i !== index))
+      } else {
+        alert('Failed to delete table')
+      }
+    } catch (error) {
+      console.error(error)
+      alert('Error deleting table')
     }
   }
 
@@ -71,11 +95,11 @@ export default function AdminDashboard() {
         <h2 className="text-lg font-semibold">Generate Table QR</h2>
         <div className="mt-3 space-y-3">
           <div>
-            <label className="block text-sm font-medium">Table Number (optional, e.g., T5)</label>
+            <label className="block text-sm font-medium">Table Range (e.g., T1, T1-T5, or 3 for next 3)</label>
             <input
-              value={tableInput}
-              onChange={(e) => setTableInput(e.target.value)}
-              placeholder="Leave empty for next sequential"
+              value={rangeInput}
+              onChange={(e) => setRangeInput(e.target.value)}
+              placeholder="T1 or T1-T5 or 3"
               className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
@@ -87,34 +111,44 @@ export default function AdminDashboard() {
             {generating ? 'Generating...' : 'Generate Table QR'}
           </button>
         </div>
-        {qrData && (
+        {qrData.length > 0 && (
           <div className="mt-4 space-y-4">
-            <div className="text-sm">
-              <strong>Table No:</strong> {qrData.table_no}
-            </div>
-            <div className="text-sm">
-              <strong>Hash:</strong> {qrData.hash}
-            </div>
-            <div className="text-sm">
-              <strong>URL:</strong> {qrData.url}
-            </div>
-            <div ref={qrRef} className="flex justify-center">
-              <QRCode value={qrData.url} size={256} />
-            </div>
-            <div className="flex justify-center mt-4 gap-2">
-              <button
-                onClick={() => window.open(qrData.url, '_blank')}
-                className="rounded-md bg-secondary px-4 py-2 text-secondary-foreground"
-              >
-                Test QR
-              </button>
-              <button
-                onClick={downloadQR}
-                className="rounded-md bg-secondary px-4 py-2 text-secondary-foreground"
-              >
-                Download QR
-              </button>
-            </div>
+            {qrData.map((qr, index) => (
+              <div key={index} className="border border-border p-4 rounded">
+                <div className="text-sm">
+                  <strong>Table No:</strong> {qr.table_no}
+                </div>
+                <div className="text-sm">
+                  <strong>Hash:</strong> {qr.hash}
+                </div>
+                <div className="text-sm">
+                  <strong>URL:</strong> {qr.url}
+                </div>
+                <div ref={(el) => { qrRefs.current[index] = el }} className="flex justify-center">
+                  <QRCode value={qr.url} size={128} />
+                </div>
+                <div className="flex justify-center mt-4 gap-2">
+                  <button
+                    onClick={() => window.open(qr.url, '_blank')}
+                    className="rounded-md bg-secondary px-4 py-2 text-secondary-foreground"
+                  >
+                    Test QR
+                  </button>
+                  <button
+                    onClick={() => downloadQR(index)}
+                    className="rounded-md bg-secondary px-4 py-2 text-secondary-foreground"
+                  >
+                    Download QR
+                  </button>
+                  <button
+                    onClick={() => deleteTable(qr.table_no, index)}
+                    className="rounded-md bg-red-500 px-4 py-2 text-white"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

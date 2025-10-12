@@ -22,6 +22,7 @@ export default function AppContent() {
           <main className="mx-auto max-w-6xl px-4 py-6">
             <Routes>
               <Route path="/" element={<ScanPage />} />
+              <Route path="/:hash/:table" element={<ScanPage />} />
               <Route path="/menu" element={<MenuPage />} />
               <Route path="/cart" element={<CartPage />} />
               <Route path="/auth" element={<AuthPage />} />

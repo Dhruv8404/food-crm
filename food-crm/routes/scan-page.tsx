@@ -1,19 +1,19 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useNavigate, useParams } from "react-router-dom"
 import { motion } from "framer-motion"
 import { useApp } from "@/context/app-context"
 
 export default function ScanPage() {
   const [code, setCode] = useState("")
-  const router = useRouter()
-  const searchParams = useSearchParams()
+  const navigate = useNavigate()
+  const params = useParams()
   const { setCurrentTable } = useApp()
 
   useEffect(() => {
-    const table = searchParams.get('table')
-    const hash = searchParams.get('hash')
+    const table = params.table
+    const hash = params.hash
     if (table && hash) {
       // Verify table
       fetch(`http://127.0.0.1:8000/api/tables/verify/?table=${table}&hash=${hash}`)
@@ -22,14 +22,14 @@ export default function ScanPage() {
           if (data.valid) {
             setCode(data.table_no)
             setCurrentTable(data.table_no)
-            router.push('/menu')
+            navigate('/menu')
           } else {
             alert('Invalid QR code')
           }
         })
         .catch(err => console.error('Verification failed:', err))
     }
-  }, [searchParams, setCurrentTable, router])
+  }, [params, setCurrentTable, navigate])
 
   return (
     <section className="mx-auto max-w-2xl">
@@ -50,7 +50,7 @@ export default function ScanPage() {
             disabled={!code}
             onClick={() => {
               setCurrentTable(code)
-              router.push("/menu")
+              navigate("/menu")
             }}
             className="rounded-md bg-primary px-4 py-2 text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
           >

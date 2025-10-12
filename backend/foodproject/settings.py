@@ -156,5 +156,12 @@ REST_FRAMEWORK = {
     ],
 }
 
+# JWT settings
+from datetime import timedelta
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+}
+
 # Base URL for QR generation
 BASE_URL = config('BASE_URL', default='http://localhost:3000')
