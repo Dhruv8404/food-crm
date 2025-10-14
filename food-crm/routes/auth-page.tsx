@@ -1,21 +1,55 @@
 "use client"
 
 import { useApp } from "@/context/app-context"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import Spinner from "@/components/spinner"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function AuthPage() {
-  const { loginCustomer, createOrderFromCart } = useApp()
+  const { loginCustomer, state, setPendingOrder } = useApp()
   const [phone, setPhone] = useState("")
   const [email, setEmail] = useState("")
   const [sent, setSent] = useState(false)
   const [otp, setOtp] = useState("")
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [resendTimer, setResendTimer] = useState(0)
   const navigate = useNavigate()
 
+  useEffect(() => {
+    if (resendTimer > 0) {
+      const timer = setTimeout(() => setResendTimer(resendTimer - 1), 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [resendTimer])
+
+  useEffect(() => {
+    if (state.pendingOrder && !sent) {
+      setPhone(state.user.phone || "")
+      setEmail(state.user.email || "")
+    }
+  }, [state.pendingOrder, state.user, sent])
+
+  const validateInputs = () => {
+    if (!phone.trim()) return "Phone number is required"
+    if (!email.trim()) return "Email is required"
+    if (!/^\d{10}$/.test(phone)) return "Phone number must be 10 digits"
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Invalid email format"
+    return null
+  }
+
   const sendOtp = async () => {
+    const validationError = validateInputs()
+    if (validationError) {
+      setError(validationError)
+      return
+    }
     setLoading(true)
+    setError("")
     try {
       const res = await fetch('http://127.0.0.1:8000/api/auth/customer/register/', {
         method: 'POST',
@@ -24,17 +58,29 @@ export default function AuthPage() {
       })
       if (res.ok) {
         setSent(true)
+        setResendTimer(60) // 60 seconds cooldown
       } else {
-        alert("Failed to send OTP")
+        const data = await res.json()
+        setError(data.detail || "Failed to send OTP")
       }
     } catch (e) {
-      alert("Error sending OTP")
+      setError("Network error. Please check your connection.")
     }
     setLoading(false)
   }
 
+  const resendOtp = async () => {
+    if (resendTimer > 0) return
+    await sendOtp()
+  }
+
   const verify = async () => {
+    if (!otp.trim()) {
+      setError("Please enter the OTP")
+      return
+    }
     setLoading(true)
+    setError("")
     try {
       const res = await fetch('http://127.0.0.1:8000/api/auth/customer/verify/', {
         method: 'POST',
@@ -51,16 +97,17 @@ export default function AuthPage() {
         const loginData = await loginRes.json()
         if (loginRes.ok) {
           loginCustomer(phone, email, loginData.token)
-          const order = await createOrderFromCart()
-          navigate(order ? "/customer" : "/menu", { replace: true })
+          setPendingOrder(false)
+          navigate("/customer", { replace: true })
         } else {
-          alert("Login failed after verification")
+          setError("Login failed after verification. Please try again.")
         }
       } else {
-        alert("Invalid OTP")
+        const data = await res.json()
+        setError(data.detail || "Invalid OTP")
       }
     } catch (e) {
-      alert("Verification failed")
+      setError("Verification failed. Please check your connection.")
     }
     setLoading(false)
   }
@@ -68,47 +115,72 @@ export default function AuthPage() {
   return (
     <section className="mx-auto max-w-md">
       <h1 className="text-2xl font-semibold">Customer Verification</h1>
-      <p className="text-sm text-muted-foreground">Enter phone and email to receive OTP.</p>
+      <p className="text-sm text-muted-foreground">
+        {state.pendingOrder ? "Verify your details to complete the order." : "Enter phone and email to receive OTP."}
+      </p>
+
+      {error && (
+        <Alert className="mt-4">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
       <div className="mt-6 space-y-4 rounded-xl border border-border bg-card p-6">
-        <input
-          className="w-full rounded-md border border-input bg-background px-3 py-2"
-          placeholder="Phone Number"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          disabled={sent}
-        />
-        <input
-          className="w-full rounded-md border border-input bg-background px-3 py-2"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          disabled={sent}
-        />
+        <div className="space-y-2">
+          <Label htmlFor="phone">Phone Number</Label>
+          <Input
+            id="phone"
+            placeholder="Phone Number"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            disabled={sent}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={sent}
+          />
+        </div>
 
         {!sent ? (
-          <button
+          <Button
             disabled={!phone || !email || loading}
             onClick={sendOtp}
-            className="w-full rounded-md bg-primary px-4 py-2 text-primary-foreground disabled:opacity-50"
+            className="w-full"
           >
             {loading ? <Spinner label="Sending OTP..." /> : "Send OTP"}
-          </button>
+          </Button>
         ) : (
           <>
-            <input
-              className="w-full rounded-md border border-input bg-background px-3 py-2"
-              placeholder="Enter OTP (123456)"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-            />
-            <button
+            <div className="space-y-2">
+              <Label htmlFor="otp">Enter OTP</Label>
+              <Input
+                id="otp"
+                placeholder="Enter OTP (123456)"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+              />
+            </div>
+            <Button
               disabled={!otp || loading}
               onClick={verify}
-              className="w-full rounded-md bg-primary px-4 py-2 text-primary-foreground disabled:opacity-50"
+              className="w-full"
             >
-              {loading ? <Spinner label="Verifying..." /> : "Verify & Confirm Order"}
-            </button>
+              {loading ? <Spinner label="Verifying..." /> : (state.pendingOrder ? "Verify & Complete Order" : "Verify & Confirm Order")}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={resendOtp}
+              disabled={resendTimer > 0 || loading}
+              className="w-full mt-2"
+            >
+              {resendTimer > 0 ? `Resend OTP in ${resendTimer}s` : "Resend OTP"}
+            </Button>
           </>
         )}
       </div>

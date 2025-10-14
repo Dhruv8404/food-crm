@@ -5,19 +5,34 @@ import { useNavigate } from "react-router-dom"
 import { useApp } from "@/context/app-context"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
 
 export default function MenuPage() {
   const navigate = useNavigate()
-  const { addToCart, removeFromCart, updateQty, clearCart, createOrderFromCart, state, fetchOrders } = useApp()
+  const { addToCart, removeFromCart, updateQty, clearCart, createOrderFromCart, state, fetchOrders, setPendingOrder } = useApp()
   const [parcelCart, setParcelCart] = useState<{ id: string; name: string; price: number; qty: number }[]>([])
   const [placingOrder, setPlacingOrder] = useState(false)
   const [customerPlacingOrder, setCustomerPlacingOrder] = useState(false)
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
 
   const addToParcelCart = (item: { id: string; name: string; price: number }) => {
     setParcelCart(prev => {
       const existing = prev.find(i => i.id === item.id)
       if (existing) {
-        return prev.map(i => i.id === item.id ? { ...i, qty: i.qty + 1 } : i)
+        return prev.map(i => i.id === item.id ? { ...i, qty: Math.min(i.qty + 1, 20) } : i)
       } else {
         return [...prev, { ...item, qty: 1 }]
       }
@@ -32,7 +47,7 @@ export default function MenuPage() {
     if (qty <= 0) {
       removeFromParcelCart(id)
     } else {
-      setParcelCart(prev => prev.map(i => i.id === id ? { ...i, qty } : i))
+      setParcelCart(prev => prev.map(i => i.id === id ? { ...i, qty: Math.min(Math.max(1, qty), 20) } : i))
     }
   }
 
@@ -72,13 +87,25 @@ export default function MenuPage() {
     setPlacingOrder(false)
   }
 
-  const placeCustomerOrder = async () => {
+  const confirmCustomerOrder = async () => {
+    setShowConfirmDialog(false)
     setCustomerPlacingOrder(true)
+    setPendingOrder(true)
     const order = await createOrderFromCart()
     if (order) {
-      navigate('/customer')
+      navigate('/auth')
+    } else {
+      setPendingOrder(false)
     }
     setCustomerPlacingOrder(false)
+  }
+
+  const placeCustomerOrder = () => {
+    if (state.cart.length === 0) {
+      alert('Your cart is empty')
+      return
+    }
+    setShowConfirmDialog(true)
   }
 
   if (state.user.role === 'admin') {
@@ -89,70 +116,84 @@ export default function MenuPage() {
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {state.menu.map((m, i) => (
-            <motion.div key={m.id} whileHover={{ y: -4 }} className="rounded-xl border border-border bg-card shadow">
-              <img src={m.image || "/placeholder.svg"} alt={m.name} className="h-40 w-full rounded-t-xl object-cover" />
-              <div className="space-y-2 p-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-medium">{m.name}</h3>
-                  <span className="rounded bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
-                    ${m.price.toFixed(2)}
-                  </span>
-                </div>
-                <p className="text-sm text-muted-foreground">{m.description}</p>
-                <Button
-                  onClick={() => addToParcelCart(m)}
-                  className="mt-3 w-full"
-                >
-                  Add to Parcel Cart
-                </Button>
-              </div>
-            </motion.div>
+            <Card key={m.id} className="overflow-hidden">
+              <motion.div whileHover={{ y: -4 }} className="h-full">
+                <img src={m.image || "/placeholder.svg"} alt={m.name} className="h-40 w-full object-cover" />
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <CardTitle className="text-lg">{m.name}</CardTitle>
+                    <Badge variant="secondary">${m.price.toFixed(2)}</Badge>
+                  </div>
+                  <CardDescription className="mb-3">{m.description}</CardDescription>
+                  <Button
+                    onClick={() => addToParcelCart(m)}
+                    className="w-full"
+                  >
+                    Add to Parcel Cart
+                  </Button>
+                </CardContent>
+              </motion.div>
+            </Card>
           ))}
         </div>
 
         {parcelCart.length > 0 && (
-          <div className="mt-6 rounded-xl border border-border bg-card p-4">
-            <h2 className="text-lg font-semibold mb-3">Parcel Cart</h2>
-            <div className="space-y-2">
-              {parcelCart.map((item) => (
-                <div key={item.id} className="flex items-center justify-between rounded-lg border border-border p-3">
-                  <div>
-                    <div className="font-medium">{item.name}</div>
-                    <div className="text-sm text-muted-foreground">${item.price.toFixed(2)} each</div>
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>Parcel Cart</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {parcelCart.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between rounded-lg border p-3">
+                    <div>
+                      <div className="font-medium">{item.name}</div>
+                      <div className="text-sm text-muted-foreground">${item.price.toFixed(2)} each</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => updateParcelQty(item.id, item.qty - 1)}
+                      >
+                        -
+                      </Button>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="20"
+                        value={item.qty}
+                        onChange={(e) => updateParcelQty(item.id, parseInt(e.target.value) || 1)}
+                        className="w-16 text-center"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => updateParcelQty(item.id, item.qty + 1)}
+                      >
+                        +
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => removeFromParcelCart(item.id)}
+                      >
+                        Remove
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => updateParcelQty(item.id, item.qty - 1)}
-                      className="rounded-md border border-border px-2 py-1 text-sm hover:bg-secondary/60"
-                    >
-                      -
-                    </button>
-                    <span className="text-sm">{item.qty}</span>
-                    <button
-                      onClick={() => updateParcelQty(item.id, item.qty + 1)}
-                      className="rounded-md border border-border px-2 py-1 text-sm hover:bg-secondary/60"
-                    >
-                      +
-                    </button>
-                    <button
-                      onClick={() => removeFromParcelCart(item.id)}
-                      className="rounded-md bg-red-500 px-2 py-1 text-sm text-white"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4 flex items-center justify-between">
-              <div className="font-semibold">
-                Total: ${parcelCart.reduce((sum, i) => sum + i.price * i.qty, 0).toFixed(2)}
+                ))}
               </div>
-              <Button onClick={placeParcelOrder} disabled={placingOrder}>
-                {placingOrder ? 'Placing...' : 'Place Parcel Order'}
-              </Button>
-            </div>
-          </div>
+              <div className="mt-4 flex items-center justify-between">
+                <div className="text-lg font-semibold">
+                  Total: ${parcelCart.reduce((sum, i) => sum + i.price * i.qty, 0).toFixed(2)}
+                </div>
+                <Button onClick={placeParcelOrder} disabled={placingOrder}>
+                  {placingOrder ? 'Placing...' : 'Place Parcel Order'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         )}
       </section>
     )
@@ -165,70 +206,102 @@ export default function MenuPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {state.menu.map((m, i) => (
-          <motion.div key={m.id} whileHover={{ y: -4 }} className="rounded-xl border border-border bg-card shadow">
-            <img src={m.image || "/placeholder.svg"} alt={m.name} className="h-40 w-full rounded-t-xl object-cover" />
-            <div className="space-y-2 p-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-medium">{m.name}</h3>
-                <span className="rounded bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
-                  ${m.price.toFixed(2)}
-                </span>
-              </div>
-              <p className="text-sm text-muted-foreground">{m.description}</p>
-              <button
-                onClick={() => addToCart(m.id)}
-                className="mt-3 w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
-              >
-                Add to Cart
-              </button>
-            </div>
-          </motion.div>
+          <Card key={m.id} className="overflow-hidden">
+            <motion.div whileHover={{ y: -4 }} className="h-full">
+              <img src={m.image || "/placeholder.svg"} alt={m.name} className="h-40 w-full object-cover" />
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <CardTitle className="text-lg">{m.name}</CardTitle>
+                  <Badge variant="secondary">${m.price.toFixed(2)}</Badge>
+                </div>
+                <CardDescription className="mb-3">{m.description}</CardDescription>
+                <Button
+                  onClick={() => addToCart(m.id)}
+                  className="w-full"
+                >
+                  Add to Cart
+                </Button>
+              </CardContent>
+            </motion.div>
+          </Card>
         ))}
       </div>
 
       {state.cart.length > 0 && (
-        <div className="mt-6 rounded-xl border border-border bg-card p-4">
-          <h2 className="text-lg font-semibold mb-3">Your Cart</h2>
-          <div className="space-y-2">
-            {state.cart.map((item) => (
-              <div key={item.id} className="flex items-center justify-between rounded-lg border border-border p-3">
-                <div>
-                  <div className="font-medium">{item.name}</div>
-                  <div className="text-sm text-muted-foreground">${item.price.toFixed(2)} each</div>
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>Your Cart</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {state.cart.map((item) => (
+                <div key={item.id} className="flex items-center justify-between rounded-lg border p-3">
+                  <div>
+                    <div className="font-medium">{item.name}</div>
+                    <div className="text-sm text-muted-foreground">${item.price.toFixed(2)} each</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => updateQty(item.id, item.qty - 1)}
+                    >
+                      -
+                    </Button>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="20"
+                      value={item.qty}
+                      onChange={(e) => updateQty(item.id, parseInt(e.target.value) || 1)}
+                      className="w-16 text-center"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => updateQty(item.id, item.qty + 1)}
+                    >
+                      +
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => removeFromCart(item.id)}
+                    >
+                      Remove
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => updateQty(item.id, item.qty - 1)}
-                    className="rounded-md border border-border px-2 py-1 text-sm hover:bg-secondary/60"
-                  >
-                    -
-                  </button>
-                  <span className="text-sm">{item.qty}</span>
-                  <button
-                    onClick={() => updateQty(item.id, item.qty + 1)}
-                    className="rounded-md border border-border px-2 py-1 text-sm hover:bg-secondary/60"
-                  >
-                    +
-                  </button>
-                  <button
-                    onClick={() => removeFromCart(item.id)}
-                    className="rounded-md bg-red-500 px-2 py-1 text-sm text-white"
-                  >
-                    Remove
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 flex items-center justify-between">
-            <div className="font-semibold">
-              Total: ${state.cart.reduce((sum, i) => sum + i.price * i.qty, 0).toFixed(2)}
+              ))}
             </div>
-            <Button onClick={placeCustomerOrder} disabled={customerPlacingOrder}>
-              {customerPlacingOrder ? 'Placing...' : 'Place Order'}
-            </Button>
-          </div>
-        </div>
+            <div className="mt-4 flex items-center justify-between">
+              <div className="text-lg font-semibold">
+                Total: ${state.cart.reduce((sum, i) => sum + i.price * i.qty, 0).toFixed(2)}
+              </div>
+              <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+                <AlertDialogTrigger asChild>
+                  <Button onClick={placeCustomerOrder} disabled={customerPlacingOrder}>
+                    {customerPlacingOrder ? 'Placing...' : 'Place Order'}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Confirm Order</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to place this order? You will be redirected to verification.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={confirmCustomerOrder}>
+                      Confirm Order
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </section>
   )

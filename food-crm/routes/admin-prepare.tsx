@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { useApp } from "@/context/app-context"
 import {
@@ -12,15 +12,78 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 
 export default function AdminPrepare() {
   const { state, fetchOrders, markPreparing } = useApp()
+
+  const [editingTable, setEditingTable] = useState<string | null>(null)
+  const [editTableValue, setEditTableValue] = useState('')
+  const [deletingOrder, setDeletingOrder] = useState<string | null>(null)
 
   useEffect(() => {
     fetchOrders()
   }, [fetchOrders])
 
   const pendingOrders = state.orders.filter(o => o.status === 'pending').sort((a, b) => (a.table_no || '').localeCompare(b.table_no || ''))
+
+  const startEditingTable = (orderId: string, currentTable: string) => {
+    setEditingTable(orderId)
+    setEditTableValue(currentTable || '')
+  }
+
+  const saveTableEdit = async () => {
+    if (!editingTable || !state.token) return
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/api/orders/${editingTable}/`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${state.token}`
+        },
+        body: JSON.stringify({
+          table_no: editTableValue
+        })
+      })
+      if (response.ok) {
+        await fetchOrders()
+        setEditingTable(null)
+        setEditTableValue('')
+      } else {
+        alert('Failed to update table number')
+      }
+    } catch (error) {
+      console.error('Error updating table:', error)
+      alert('Error updating table number')
+    }
+  }
+
+  const cancelTableEdit = () => {
+    setEditingTable(null)
+    setEditTableValue('')
+  }
+
+  const handleDeleteOrder = async (orderId: string) => {
+    if (!confirm('Are you sure you want to delete this order?')) return
+    setDeletingOrder(orderId)
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/api/orders/${orderId}/`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${state.token}`
+        }
+      })
+      if (response.ok) {
+        await fetchOrders()
+      } else {
+        alert('Failed to delete order')
+      }
+    } catch (error) {
+      console.error('Error deleting order:', error)
+      alert('Error deleting order')
+    }
+    setDeletingOrder(null)
+  }
 
   return (
     <div className="space-y-6">
@@ -53,7 +116,32 @@ export default function AdminPrepare() {
               {pendingOrders.map((o) => (
                 <TableRow key={o.id}>
                   <TableCell>{o.id}</TableCell>
-                  <TableCell>{o.table_no || 'N/A'}</TableCell>
+                  <TableCell>
+                    {editingTable === o.id ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={editTableValue}
+                          onChange={(e) => setEditTableValue(e.target.value)}
+                          className="w-20 h-8"
+                          placeholder="Table"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') saveTableEdit()
+                            if (e.key === 'Escape') cancelTableEdit()
+                          }}
+                          autoFocus
+                        />
+                        <Button size="sm" onClick={saveTableEdit}>Save</Button>
+                        <Button size="sm" variant="outline" onClick={cancelTableEdit}>Cancel</Button>
+                      </div>
+                    ) : (
+                      <span
+                        className="cursor-pointer hover:bg-muted px-2 py-1 rounded"
+                        onClick={() => startEditingTable(o.id, o.table_no || '')}
+                      >
+                        {o.table_no || 'N/A'}
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell>{o.customer.phone} • {o.customer.email}</TableCell>
                   <TableCell>
                     <ul className="list-disc list-inside">
@@ -64,9 +152,19 @@ export default function AdminPrepare() {
                   </TableCell>
                   <TableCell>${o.total.toFixed(2)}</TableCell>
                   <TableCell>
-                    <Button onClick={() => markPreparing(o.id)} size="sm">
-                      Mark as Preparing
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button onClick={() => markPreparing(o.id)} size="sm">
+                        Mark as Preparing
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleDeleteOrder(o.id)}
+                        disabled={deletingOrder === o.id}
+                      >
+                        {deletingOrder === o.id ? 'Deleting...' : 'Delete'}
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

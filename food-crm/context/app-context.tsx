@@ -48,6 +48,7 @@ type State = {
   menu: MenuItem[]
   token: string | null
   currentTable: string | null
+  pendingOrder: boolean
 }
 
 type Ctx = {
@@ -65,6 +66,7 @@ type Ctx = {
   markPreparing: (orderId: string) => Promise<void>
   fetchOrders: () => Promise<void>
   setCurrentTable: (table: string | null) => void
+  setPendingOrder: (pending: boolean) => void
 }
 
 const AppContext = createContext<Ctx | null>(null)
@@ -77,6 +79,7 @@ const initialState: State = {
   menu: [],
   token: null,
   currentTable: null,
+  pendingOrder: false,
 }
 
 export const AppProvider = ({ children }: { children: React.ReactNode }) => {
@@ -171,6 +174,8 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const logout = () => setState((s) => ({ ...s, user: { role: "guest" }, currentTable: null }))
 
   const setCurrentTable = (table: string | null) => setState((s) => ({ ...s, currentTable: table }))
+
+  const setPendingOrder = (pending: boolean) => setState((s) => ({ ...s, pendingOrder: pending }))
 
   const createOrderFromCart = async () => {
     if (state.user.role !== "customer" || state.cart.length === 0) return null
@@ -299,6 +304,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       markPreparing,
       fetchOrders,
       setCurrentTable,
+      setPendingOrder,
     }),
     [state],
   )

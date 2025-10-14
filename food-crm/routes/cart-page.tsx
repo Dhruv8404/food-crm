@@ -4,7 +4,7 @@ import { useApp } from "@/context/app-context"
 import { Link, useNavigate } from "react-router-dom"
 
 export default function CartPage() {
-  const { state, removeFromCart, updateQty, clearCart } = useApp()
+  const { state, removeFromCart, updateQty, clearCart, createOrderFromCart, setPendingOrder } = useApp()
   const navigate = useNavigate()
   const total = state.cart.reduce((sum, i) => sum + i.price * i.qty, 0)
 
@@ -65,7 +65,19 @@ export default function CartPage() {
               Clear
             </button>
             <button
-              onClick={() => navigate("/auth")}
+              onClick={async () => {
+                if (state.user.role === "customer") {
+                  setPendingOrder(true)
+                  const order = await createOrderFromCart()
+                  if (order) {
+                    navigate("/auth", { replace: true })
+                  } else {
+                    setPendingOrder(false)
+                  }
+                } else {
+                  navigate("/auth")
+                }
+              }}
               className="rounded-md bg-primary px-4 py-2 text-primary-foreground"
             >
               Checkout

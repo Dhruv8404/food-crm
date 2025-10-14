@@ -9,6 +9,7 @@ export default function Navbar() {
   const { state, logout } = useApp()
   const { pathname } = useLocation()
   const cartCount = state.cart.reduce((a, b) => a + b.qty, 0)
+  const billCount = state.orders.filter((o) => o.status === "completed").length
 
   const NavLink = ({ to, children }: { to: string; children: React.ReactNode }) => {
     const active = pathname === to
@@ -35,13 +36,21 @@ export default function Navbar() {
         <nav className="flex gap-2">
           {state.user.role !== "admin" && <NavLink to="/">Scan</NavLink>}
           <NavLink to="/menu">Menu</NavLink>
-          {state.user.role !== "admin" && <NavLink to="/cart">Cart</NavLink>}
           {state.user.role === "customer" && <NavLink to="/customer">My Orders</NavLink>}
           {state.user.role === "chef" && <NavLink to="/chef">Chef</NavLink>}
           {state.user.role === "admin" && <NavLink to="/admin">Admin</NavLink>}
           {state.user.role === "admin" && <NavLink to="/admin/orders">Orders</NavLink>}
           {state.user.role === "admin" && <NavLink to="/admin/prepare">Prepare</NavLink>}
-          {state.user.role === "admin" && <NavLink to="/admin/billing">Billing</NavLink>}
+          {state.user.role === "admin" && (
+            <Link to="/admin/billing" className="relative px-3 py-2 rounded-md text-sm transition-colors hover:bg-secondary/60">
+              Billing
+              {billCount > 0 && (
+                <span className="absolute -right-1 -top-1 rounded-full bg-primary px-1.5 text-[10px] leading-5 text-primary-foreground">
+                  {billCount}
+                </span>
+              )}
+            </Link>
+          )}
         </nav>
 
         <div className="flex items-center gap-2">

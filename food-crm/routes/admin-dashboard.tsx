@@ -11,6 +11,8 @@ export default function AdminDashboard() {
   const [generating, setGenerating] = useState(false)
   const [rangeInput, setRangeInput] = useState('1')
   const qrRefs = useRef<(HTMLDivElement | null)[]>([])
+  const [editingTable, setEditingTable] = useState<string | null>(null)
+  const [editTableNo, setEditTableNo] = useState('')
 
   const generateQR = async () => {
     if (state.user.role !== 'admin' || !state.token) {
@@ -73,6 +75,35 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error(error)
       alert('Error deleting table')
+    }
+  }
+
+  const handleEditTable = (table_no: string) => {
+    setEditingTable(table_no)
+    setEditTableNo(table_no)
+  }
+
+  const saveEditTable = async () => {
+    if (!editingTable || !state.token) return
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/api/tables/${editingTable}/edit/`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${state.token}`,
+        },
+        body: JSON.stringify({ new_table_no: editTableNo }),
+      })
+      if (response.ok) {
+        setQrData(prev => prev.map(qr => qr.table_no === editingTable ? { ...qr, table_no: editTableNo } : qr))
+        setEditingTable(null)
+        setEditTableNo('')
+      } else {
+        alert('Failed to edit table')
+      }
+    } catch (error) {
+      console.error(error)
+      alert('Error editing table')
     }
   }
 
@@ -140,12 +171,42 @@ export default function AdminDashboard() {
                     Download QR
                   </button>
                   <button
+                    onClick={() => handleEditTable(qr.table_no)}
+                    className="rounded-md bg-blue-500 px-4 py-2 text-white"
+                  >
+                    Edit
+                  </button>
+                  <button
                     onClick={() => deleteTable(qr.table_no, index)}
                     className="rounded-md bg-red-500 px-4 py-2 text-white"
                   >
                     Delete
                   </button>
                 </div>
+                {editingTable === qr.table_no && (
+                  <div className="mt-4 p-4 border border-border rounded">
+                    <input
+                      value={editTableNo}
+                      onChange={(e) => setEditTableNo(e.target.value)}
+                      placeholder="New table number"
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-ring"
+                    />
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={saveEditTable}
+                        className="rounded-md bg-primary px-4 py-2 text-primary-foreground"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => setEditingTable(null)}
+                        className="rounded-md bg-secondary px-4 py-2 text-secondary-foreground"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
