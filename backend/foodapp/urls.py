@@ -10,6 +10,7 @@ urlpatterns = [
     path('auth/send-otp/', views.send_otp, name='send-otp'),
     path('auth/verify-otp/', views.verify_otp, name='verify-otp'),
     path('orders/', views.OrderListCreateView.as_view(), name='order-list-create'),
+    path('orders/current/', views.get_current_order, name='current-order'),
     path('orders/<str:pk>/', views.OrderUpdateView.as_view(), name='order-update'),
     path('tables/', views.list_tables, name='list-tables'),
     path('tables/generate/', views.generate_table, name='generate-table'),

@@ -152,7 +152,7 @@ export default function AdminOrders() {
                   <TableCell>{o.status}</TableCell>
                   <TableCell>{o.customer.phone} • {o.customer.email}</TableCell>
                   <TableCell>{o.table_no || 'N/A'}</TableCell>
-                  <TableCell>${o.total.toFixed(2)}</TableCell>
+                  <TableCell>₹{o.total.toFixed(2)}</TableCell>
                   <TableCell>
                     <div className="flex gap-2">
                       <Dialog open={editingOrder === o.id} onOpenChange={(open) => !open && setEditingOrder(null)}>
@@ -187,7 +187,7 @@ export default function AdminOrders() {
                                 <SelectContent>
                                   {menuItems.map((item) => (
                                     <SelectItem key={item.id} value={item.id}>
-                                      {item.name} - ${item.price.toFixed(2)}
+                                      {item.name} - ₹{item.price.toFixed(2)}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
@@ -198,7 +198,7 @@ export default function AdminOrders() {
                               <div className="space-y-2 max-h-60 overflow-y-auto">
                                 {editItems.map((item, index) => (
                                   <div key={index} className="flex items-center gap-2 p-2 border rounded">
-                                    <span className="flex-1">{item.name} - ${item.price.toFixed(2)}</span>
+                                    <span className="flex-1">{item.name} - ₹{item.price.toFixed(2)}</span>
                                     <Input
                                       type="number"
                                       min="0"

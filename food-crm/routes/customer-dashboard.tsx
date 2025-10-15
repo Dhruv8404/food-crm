@@ -79,14 +79,14 @@ export default function CustomerDashboard() {
                       <span className="text-sm">
                         {i.name} × {i.qty}
                       </span>
-                      <span className="text-sm font-medium">${(i.price * i.qty).toFixed(2)}</span>
+                      <span className="text-sm font-medium">₹{(i.price * i.qty).toFixed(2)}</span>
                     </div>
                   ))}
                 </div>
                 <Separator className="my-3" />
                 <div className="flex justify-between items-center">
                   <span className="font-semibold">Total</span>
-                  <span className="text-lg font-bold">${o.total.toFixed(2)}</span>
+                  <span className="text-lg font-bold">₹{o.total.toFixed(2)}</span>
                 </div>
                 {o.table_no && (
                   <div className="mt-2 text-sm text-muted-foreground">

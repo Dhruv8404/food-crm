@@ -152,7 +152,7 @@ export default function MenuPage() {
                   <div key={item.id} className="flex items-center justify-between rounded-lg border p-3">
                     <div>
                       <div className="font-medium">{item.name}</div>
-                      <div className="text-sm text-muted-foreground">${item.price.toFixed(2)} each</div>
+                      <div className="text-sm text-muted-foreground">₹{item.price.toFixed(2)} each</div>
                     </div>
                     <div className="flex items-center gap-2">
                       <Button
@@ -190,7 +190,7 @@ export default function MenuPage() {
               </div>
               <div className="mt-4 flex items-center justify-between">
                 <div className="text-lg font-semibold">
-                  Total: ${parcelCart.reduce((sum, i) => sum + i.price * i.qty, 0).toFixed(2)}
+                  Total: ₹{parcelCart.reduce((sum, i) => sum + i.price * i.qty, 0).toFixed(2)}
                 </div>
                 <Button onClick={placeParcelOrder} disabled={placingOrder}>
                   {placingOrder ? 'Placing...' : 'Place Parcel Order'}
@@ -216,7 +216,7 @@ export default function MenuPage() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-2">
                   <CardTitle className="text-lg">{m.name}</CardTitle>
-                  <Badge variant="secondary">${m.price.toFixed(2)}</Badge>
+                  <Badge variant="secondary">₹{m.price.toFixed(2)}</Badge>
                 </div>
                 <CardDescription className="mb-3">{m.description}</CardDescription>
                 <Button
@@ -242,7 +242,7 @@ export default function MenuPage() {
                 <div key={item.id} className="flex items-center justify-between rounded-lg border p-3">
                   <div>
                     <div className="font-medium">{item.name}</div>
-                    <div className="text-sm text-muted-foreground">${item.price.toFixed(2)} each</div>
+                    <div className="text-sm text-muted-foreground">₹{item.price.toFixed(2)} each</div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
@@ -280,7 +280,7 @@ export default function MenuPage() {
             </div>
             <div className="mt-4 flex items-center justify-between">
               <div className="text-lg font-semibold">
-                Total: ${state.cart.reduce((sum, i) => sum + i.price * i.qty, 0).toFixed(2)}
+                Total: ₹{state.cart.reduce((sum, i) => sum + i.price * i.qty, 0).toFixed(2)}
               </div>
               <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
                 <AlertDialogTrigger asChild>

@@ -117,10 +117,12 @@ def verify_otp(request):
         return Response({'error': 'Phone and OTP are required'}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        user = CustomUser.objects.get(phone=phone)
+        user = CustomUser.objects.filter(phone=phone, role='customer').first()
+        if not user:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
         email = user.email
-    except CustomUser.DoesNotExist:
-        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': 'Database error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     success, message = verify_otp_util(email, otp)
     if success:
@@ -166,7 +168,7 @@ class OrderListCreateView(generics.ListCreateAPIView):
         customer_data = {'phone': self.request.user.phone, 'email': self.request.user.email}
         # Calculate total from items
         items = serializer.validated_data.get('items', [])
-        total = sum(item['price'] * item['qty'] for item in items)
+        total = sum(item['price'] * item['quantity'] for item in items)
         table_no = serializer.validated_data.get('table_no') or self.request.data.get('table_no')
         # Generate unique id
         while True:
@@ -193,7 +195,7 @@ class OrderUpdateView(generics.RetrieveUpdateDestroyAPIView):
             if 'items' in self.request.data:
                 # Recalculate total
                 items = self.request.data['items']
-                total = sum(item['price'] * item['qty'] for item in items)
+                total = sum(item['price'] * item['quantity'] for item in items)
                 serializer.save(total=total)
             else:
                 serializer.save()
@@ -309,3 +311,30 @@ def list_tables(request):
     tables = Table.objects.filter(active=True)
     serializer = TableSerializer(tables, many=True)
     return Response(serializer.data)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_current_order(request):
+    phone = request.GET.get('phone')
+    if not phone:
+        return Response({'error': 'Phone number is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        # Get all unpaid orders for this phone number, ordered by creation time
+        orders = Order.objects.filter(customer__phone=phone).exclude(status='paid').order_by('-created_at')
+        if not orders.exists():
+            return Response({'error': 'No current orders found'}, status=status.HTTP_200_OK)
+
+        # Return the most recent order for backward compatibility, but include all orders in the response
+        most_recent_order = orders.first()
+        serializer = OrderSerializer(most_recent_order)
+
+        # Also include all orders in the response
+        all_orders_serializer = OrderSerializer(orders, many=True)
+
+        response_data = serializer.data
+        response_data['all_orders'] = all_orders_serializer.data
+
+        return Response(response_data)
+    except Exception as e:
+        return Response({'error': 'Database error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -28,7 +28,7 @@ export default function CartPage() {
             >
               <div>
                 <p className="font-medium">{item.name}</p>
-                <p className="text-sm text-muted-foreground">${item.price.toFixed(2)}</p>
+                <p className="text-sm text-muted-foreground">₹{item.price.toFixed(2)}</p>
               </div>
 
               <div className="flex items-center gap-2">
@@ -57,7 +57,7 @@ export default function CartPage() {
 
           <div className="flex items-center justify-between rounded-lg border border-border bg-card p-4">
             <p className="text-lg font-semibold">Total</p>
-            <p className="text-lg font-semibold">${total.toFixed(2)}</p>
+            <p className="text-lg font-semibold">₹{total.toFixed(2)}</p>
           </div>
 
           <div className="flex items-center justify-end gap-2">

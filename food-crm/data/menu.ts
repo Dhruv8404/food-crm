@@ -2,7 +2,7 @@ export const menuItems = [
   {
     id: "m1",
     name: "Margherita Pizza",
-    price: 8.5,
+    price: 706,
     description: "Classic pizza with tomato, mozzarella and basil.",
     category: "Pizza",
     image: "/margherita-pizza.png",
@@ -10,7 +10,7 @@ export const menuItems = [
   {
     id: "m2",
     name: "Chicken Burger",
-    price: 7.0,
+    price: 581,
     description: "Crispy chicken patty with lettuce and mayo.",
     category: "Burger",
     image: "/chicken-burger.jpg",
@@ -18,7 +18,7 @@ export const menuItems = [
   {
     id: "m3",
     name: "Pasta Alfredo",
-    price: 9.25,
+    price: 768,
     description: "Creamy alfredo sauce with parmesan.",
     category: "Pasta",
     image: "/pasta-alfredo.jpg",
@@ -26,7 +26,7 @@ export const menuItems = [
   {
     id: "m4",
     name: "Caesar Salad",
-    price: 6.0,
+    price: 498,
     description: "Romaine, croutons and caesar dressing.",
     category: "Salad",
     image: "/caesar-salad.png",
