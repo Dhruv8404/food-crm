@@ -42,8 +42,8 @@ export default function Navbar() {
             </>
           ) : (
             <>
-              {state.user.role !== "admin" && <NavLink to="/">Scan</NavLink>}
-              <NavLink to="/menu">Menu</NavLink>
+              {state.user.role !== "admin" && state.user.role !== "chef" && <NavLink to="/">Scan</NavLink>}
+              {state.user.role !== "chef" && <NavLink to="/menu">Menu</NavLink>}
               {state.user.role === "chef" && <NavLink to="/chef">Chef</NavLink>}
               {state.user.role === "admin" && <NavLink to="/admin">Admin</NavLink>}
               {state.user.role === "admin" && <NavLink to="/admin/orders">Orders</NavLink>}
@@ -63,7 +63,7 @@ export default function Navbar() {
         </nav>
 
         <div className="flex items-center gap-2">
-          {state.user.role !== "admin" && (
+          {state.user.role !== "admin" && state.user.role !== "chef" && (
             <Link to="/cart" className="relative rounded-md px-3 py-2 hover:bg-secondary/60" aria-label="Cart">
               <FaShoppingCart />
               {cartCount > 0 && (

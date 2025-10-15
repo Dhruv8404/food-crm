@@ -46,6 +46,7 @@ export default function ChefDashboard() {
                   </ul>
                   <div className="mt-2 text-xs text-muted-foreground">
                     Customer: {o.customer.phone} • {o.customer.email}
+                    {o.table_no && <div>Table: {o.table_no}</div>}
                   </div>
                 </div>
               ))
@@ -79,6 +80,7 @@ export default function ChefDashboard() {
                   </ul>
                   <div className="mt-2 text-xs text-muted-foreground">
                     Customer: {o.customer.phone} • {o.customer.email}
+                    {o.table_no && <div>Table: {o.table_no}</div>}
                   </div>
                 </div>
               ))
@@ -107,6 +109,7 @@ export default function ChefDashboard() {
                   </ul>
                   <div className="mt-2 text-xs text-muted-foreground">
                     Customer: {o.customer.phone} • {o.customer.email}
+                    {o.table_no && <div>Table: {o.table_no}</div>}
                   </div>
                 </div>
               ))

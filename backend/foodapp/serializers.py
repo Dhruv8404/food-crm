@@ -14,7 +14,7 @@ class OrderSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         items = data.get('items', [])
-        if not items:
+        if not items and 'items' in data:
             raise serializers.ValidationError("Items cannot be empty.")
 
         status = data.get('status')

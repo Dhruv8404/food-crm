@@ -2,6 +2,7 @@ from rest_framework import status, generics, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.exceptions import PermissionDenied
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User as DjangoUser  # Use built-in for staff, custom for customers
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -174,7 +175,7 @@ class OrderListCreateView(generics.ListCreateAPIView):
                 break
         serializer.save(customer=customer_data, total=total, table_no=table_no, id=order_id)
 
-class OrderUpdateView(generics.UpdateAPIView):
+class OrderUpdateView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated]
@@ -186,9 +187,30 @@ class OrderUpdateView(generics.UpdateAPIView):
         return Order.objects.none()
 
     def perform_update(self, serializer):
-        # Only allow status updates
-        if 'status' in self.request.data:
-            serializer.save()
+        user = self.request.user
+        if user.role == 'admin':
+            # Admins can update items, table_no, and status
+            if 'items' in self.request.data:
+                # Recalculate total
+                items = self.request.data['items']
+                total = sum(item['price'] * item['qty'] for item in items)
+                serializer.save(total=total)
+            else:
+                serializer.save()
+        elif user.role == 'chef':
+            # Chefs can only update status
+            if 'status' in self.request.data and len(self.request.data) == 1:
+                serializer.save()
+            else:
+                raise serializers.ValidationError("Chefs can only update status.")
+        else:
+            raise serializers.ValidationError("Unauthorized to update orders.")
+
+    def destroy(self, request, *args, **kwargs):
+        user = self.request.user
+        if user.role != 'admin':
+            raise PermissionDenied("Only admins can delete orders.")
+        return super().destroy(request, *args, **kwargs)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
