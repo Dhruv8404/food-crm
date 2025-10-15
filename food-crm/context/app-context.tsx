@@ -41,6 +41,11 @@ type User = {
   email?: string
 }
 
+type PendingOrderData = {
+  items: CartItem[]
+  table_no: string | null
+}
+
 type State = {
   user: User
   cart: CartItem[]
@@ -48,7 +53,7 @@ type State = {
   menu: MenuItem[]
   token: string | null
   currentTable: string | null
-  pendingOrder: boolean
+  pendingOrder: PendingOrderData | null
 }
 
 type Ctx = {
@@ -66,7 +71,7 @@ type Ctx = {
   markPreparing: (orderId: string) => Promise<void>
   fetchOrders: () => Promise<void>
   setCurrentTable: (table: string | null) => void
-  setPendingOrder: (pending: boolean) => void
+  setPendingOrder: (pending: PendingOrderData | null) => void
 }
 
 const AppContext = createContext<Ctx | null>(null)
@@ -79,7 +84,7 @@ const initialState: State = {
   menu: [],
   token: null,
   currentTable: null,
-  pendingOrder: false,
+  pendingOrder: null,
 }
 
 export const AppProvider = ({ children }: { children: React.ReactNode }) => {
@@ -175,7 +180,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
 
   const setCurrentTable = (table: string | null) => setState((s) => ({ ...s, currentTable: table }))
 
-  const setPendingOrder = (pending: boolean) => setState((s) => ({ ...s, pendingOrder: pending }))
+  const setPendingOrder = (pending: PendingOrderData | null) => setState((s) => ({ ...s, pendingOrder: pending }))
 
   const createOrderFromCart = async () => {
     if (state.user.role !== "customer" || state.cart.length === 0) return null

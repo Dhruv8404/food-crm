@@ -5,9 +5,9 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User as DjangoUser  # Use built-in for staff, custom for customers
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import MenuItem, Order, User as CustomUser, Table
+from .models import MenuItem, Order, User as CustomUser, Table, OTP
 from .serializers import MenuItemSerializer, OrderSerializer, UserSerializer, CustomerRegisterSerializer, StaffLoginSerializer, CustomerVerifySerializer, CustomerLoginSerializer, TableSerializer
-from .utils import send_otp_email, verify_otp
+from .utils import send_otp_email, verify_otp as verify_otp_util
 from django.conf import settings
 import random
 import string
@@ -33,11 +33,16 @@ def customer_register(request):
         # Check if customer exists
         customer, created = CustomUser.objects.get_or_create(
             email=email,
-            defaults={'role': 'customer', 'phone': phone, 'username': f"{email}_customer"}
+            defaults={'role': 'customer', 'phone': phone, 'username': f"{email}_customer", 'is_active': True}
         )
         if not created:
             customer.role = 'customer'
             customer.phone = phone
+            customer.is_active = True
+            customer.set_unusable_password()
+            customer.save()
+        else:
+            customer.set_unusable_password()
             customer.save()
 
         # Send OTP via email
@@ -63,7 +68,7 @@ def customer_verify(request):
         except CustomUser.DoesNotExist:
             return Response({'error': 'Customer not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        success, message = verify_otp(email, otp)
+        success, message = verify_otp_util(email, otp)
         if success:
             return Response({'message': 'Verified successfully', 'role': 'customer'}, status=status.HTTP_200_OK)
         else:
@@ -91,6 +96,42 @@ def staff_login(request):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+def send_otp(request):
+    email = request.data.get('email')
+    if not email:
+        return Response({'error': 'Email is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    success, message = send_otp_email(email)
+    if success:
+        return Response({'message': 'OTP sent successfully to your email'}, status=status.HTTP_200_OK)
+    else:
+        return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def verify_otp(request):
+    phone = request.data.get('phone')
+    otp = request.data.get('otp')
+    if not phone or not otp:
+        return Response({'error': 'Phone and OTP are required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        user = CustomUser.objects.get(phone=phone)
+        email = user.email
+    except CustomUser.DoesNotExist:
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    success, message = verify_otp_util(email, otp)
+    if success:
+        # Delete OTP after successful verification
+        OTP.objects.filter(email=email).delete()
+        token = RefreshToken.for_user(user).access_token
+        return Response({'message': 'OTP verified successfully', 'token': str(token), 'role': user.role}, status=status.HTTP_200_OK)
+    else:
+        return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
 def customer_login(request):
     serializer = CustomerLoginSerializer(data=request.data)
     if serializer.is_valid():
@@ -98,6 +139,8 @@ def customer_login(request):
 
         try:
             user = CustomUser.objects.get(email=email, role='customer')
+            user.is_active = True
+            user.save()
             token = RefreshToken.for_user(user).access_token
             return Response({'message': 'Login successful', 'role': 'customer', 'token': str(token)}, status=status.HTTP_200_OK)
         except CustomUser.DoesNotExist:
@@ -124,7 +167,12 @@ class OrderListCreateView(generics.ListCreateAPIView):
         items = serializer.validated_data.get('items', [])
         total = sum(item['price'] * item['qty'] for item in items)
         table_no = serializer.validated_data.get('table_no') or self.request.data.get('table_no')
-        serializer.save(customer=customer_data, total=total, table_no=table_no, id='ord_' + ''.join(random.choices(string.ascii_lowercase + string.digits, k=8)))
+        # Generate unique id
+        while True:
+            order_id = 'ord_' + ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
+            if not Order.objects.filter(id=order_id).exists():
+                break
+        serializer.save(customer=customer_data, total=total, table_no=table_no, id=order_id)
 
 class OrderUpdateView(generics.UpdateAPIView):
     queryset = Order.objects.all()
@@ -232,3 +280,10 @@ def delete_table(request, table_no):
         return Response({'message': f'Table {table_no} deleted successfully'}, status=status.HTTP_200_OK)
     except Table.DoesNotExist:
         return Response({'error': 'Table not found'}, status=status.HTTP_404_NOT_FOUND)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def list_tables(request):
+    tables = Table.objects.filter(active=True)
+    serializer = TableSerializer(tables, many=True)
+    return Response(serializer.data)

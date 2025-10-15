@@ -90,12 +90,16 @@ export default function MenuPage() {
   const confirmCustomerOrder = async () => {
     setShowConfirmDialog(false)
     setCustomerPlacingOrder(true)
-    setPendingOrder(true)
-    const order = await createOrderFromCart()
-    if (order) {
-      navigate('/auth')
+    if (state.token) {
+      // User is already logged in, place order directly
+      const order = await createOrderFromCart()
+      if (order) {
+        navigate('/order-success', { replace: true })
+      }
     } else {
-      setPendingOrder(false)
+      // User not logged in, go to auth
+      setPendingOrder({ items: state.cart, table_no: null })
+      navigate('/auth')
     }
     setCustomerPlacingOrder(false)
   }

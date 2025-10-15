@@ -34,22 +34,31 @@ export default function Navbar() {
         </Link>
 
         <nav className="flex gap-2">
-          {state.user.role !== "admin" && <NavLink to="/">Scan</NavLink>}
-          <NavLink to="/menu">Menu</NavLink>
-          {state.user.role === "customer" && <NavLink to="/customer">My Orders</NavLink>}
-          {state.user.role === "chef" && <NavLink to="/chef">Chef</NavLink>}
-          {state.user.role === "admin" && <NavLink to="/admin">Admin</NavLink>}
-          {state.user.role === "admin" && <NavLink to="/admin/orders">Orders</NavLink>}
-          {state.user.role === "admin" && <NavLink to="/admin/prepare">Prepare</NavLink>}
-          {state.user.role === "admin" && (
-            <Link to="/admin/billing" className="relative px-3 py-2 rounded-md text-sm transition-colors hover:bg-secondary/60">
-              Billing
-              {billCount > 0 && (
-                <span className="absolute -right-1 -top-1 rounded-full bg-primary px-1.5 text-[10px] leading-5 text-primary-foreground">
-                  {billCount}
-                </span>
+          {state.user.role === "customer" ? (
+            <>
+              <NavLink to="/menu">Menu</NavLink>
+              <NavLink to="/cart">Cart</NavLink>
+              <NavLink to="/order-success">Order</NavLink>
+            </>
+          ) : (
+            <>
+              {state.user.role !== "admin" && <NavLink to="/">Scan</NavLink>}
+              <NavLink to="/menu">Menu</NavLink>
+              {state.user.role === "chef" && <NavLink to="/chef">Chef</NavLink>}
+              {state.user.role === "admin" && <NavLink to="/admin">Admin</NavLink>}
+              {state.user.role === "admin" && <NavLink to="/admin/orders">Orders</NavLink>}
+              {state.user.role === "admin" && <NavLink to="/admin/prepare">Prepare</NavLink>}
+              {state.user.role === "admin" && (
+                <Link to="/admin/billing" className="relative px-3 py-2 rounded-md text-sm transition-colors hover:bg-secondary/60">
+                  Billing
+                  {billCount > 0 && (
+                    <span className="absolute -right-1 -top-1 rounded-full bg-primary px-1.5 text-[10px] leading-5 text-primary-foreground">
+                      {billCount}
+                    </span>
+                  )}
+                </Link>
               )}
-            </Link>
+            </>
           )}
         </nav>
 

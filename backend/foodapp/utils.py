@@ -60,7 +60,7 @@ def verify_otp(email, entered_otp):
             return False, "OTP expired."
         if otp_obj.otp != entered_otp:
             return False, "Invalid OTP."
-        otp_obj.delete()  # Remove after successful verification
+        # Don't delete OTP immediately to allow for retries
         return True, "OTP verified successfully."
     except OTP.DoesNotExist:
         return False, "No OTP found for this email."

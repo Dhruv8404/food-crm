@@ -82,25 +82,37 @@ export default function AuthPage() {
     setLoading(true)
     setError("")
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/auth/customer/verify/', {
+      const res = await fetch('http://127.0.0.1:8000/api/auth/verify-otp/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ otp, phone })
       })
       if (res.ok) {
-        // Get token after verification
-        const loginRes = await fetch('http://127.0.0.1:8000/api/auth/customer/login/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email })
-        })
-        const loginData = await loginRes.json()
-        if (loginRes.ok) {
-          loginCustomer(phone, email, loginData.token)
-          setPendingOrder(false)
-          navigate("/customer", { replace: true })
+        const data = await res.json()
+        loginCustomer(phone, email, data.token)
+
+        // Place the pending order after login
+        if (state.pendingOrder) {
+          const orderRes = await fetch('http://127.0.0.1:8000/api/orders/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${data.token}`
+            },
+            body: JSON.stringify({
+              items: state.pendingOrder.items,
+              table_no: state.pendingOrder.table_no || state.currentTable
+            })
+          })
+          if (orderRes.ok) {
+            setPendingOrder(null)
+            navigate("/order-success", { replace: true })
+          } else {
+            setError("Failed to place order. Please try again.")
+          }
         } else {
-          setError("Login failed after verification. Please try again.")
+          setPendingOrder(null)
+          navigate("/menu", { replace: true })
         }
       } else {
         const data = await res.json()

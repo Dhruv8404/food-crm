@@ -10,14 +10,13 @@ class OrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = '__all__'
+        read_only_fields = ['total', 'id', 'customer']
 
     def validate(self, data):
         items = data.get('items', [])
-        total = data.get('total', 0)
-        calculated_total = sum(item['price'] * item['qty'] for item in items)
-        if abs(total - calculated_total) > 0.01:  # Allow for floating point
-            raise serializers.ValidationError("Total does not match the sum of item prices and quantities.")
-        
+        if not items:
+            raise serializers.ValidationError("Items cannot be empty.")
+
         status = data.get('status')
         if status and status not in dict(Order.STATUS_CHOICES):
             raise serializers.ValidationError("Invalid status choice.")

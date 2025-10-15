@@ -67,12 +67,12 @@ export default function CartPage() {
             <button
               onClick={async () => {
                 if (state.user.role === "customer") {
-                  setPendingOrder(true)
+                  setPendingOrder({ items: state.cart, table_no: state.currentTable })
                   const order = await createOrderFromCart()
                   if (order) {
                     navigate("/auth", { replace: true })
                   } else {
-                    setPendingOrder(false)
+      setPendingOrder(null)
                   }
                 } else {
                   navigate("/auth")

@@ -1,16 +1,10 @@
-# TODO: Implement Admin Billing Page
+# Customer Workflow Implementation
 
-## Pending Tasks
-- [ ] Test the cart section in menu page for customers (add multiple items, adjust qty, place order)
-
-## Completed Tasks
-- [x] Analyze project structure and gather information from backend/frontend files
-- [x] Create detailed plan for billing page implementation
-- [x] Get user approval for the plan
-- [x] Add "Billing" navigation link in navbar for admin users only
-- [x] Create new billing page component (food-crm/routes/billing-page.tsx) with table for pending bills
-- [x] Add protected route for /admin/billing in AppContent.tsx
-- [x] Add "Back to Admin" button in billing page
-- [x] Test the billing page functionality (fetch, sort, mark paid)
-- [x] Move Order View to separate /admin/orders page
-- [x] Create Order Preparation page at /admin/prepare for pending orders
+## Tasks
+- [x] Add html5-qrcode dependency to package.json (already present)
+- [x] Modify food-crm/routes/scan-page.tsx: Replace table selection with QR scanner using html5-qrcode, remove staff access section.
+- [x] Create food-crm/routes/order-success.tsx: Page to display current order details.
+- [x] Update food-crm/app/AppContent.tsx: Hide navbar for customers, handle customer-only workflow.
+- [x] Update food-crm/routes/menu-page.tsx: After placing order and auth, redirect to /order-success.
+- [x] Ensure minimal and responsive design across changes.
+- [x] Test the workflow: scan -> menu -> place -> auth -> success.
