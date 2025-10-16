@@ -31,12 +31,13 @@ def customer_register(request):
         phone = serializer.validated_data.get('phone')
         email = serializer.validated_data['email']
 
-        # Check if customer exists
+        # Check if customer exists by email (email is unique)
         customer, created = CustomUser.objects.get_or_create(
             email=email,
             defaults={'role': 'customer', 'phone': phone, 'username': f"{email}_customer", 'is_active': True}
         )
         if not created:
+            # Update existing customer
             customer.role = 'customer'
             customer.phone = phone
             customer.is_active = True
@@ -61,17 +62,16 @@ def customer_verify(request):
     serializer = CustomerVerifySerializer(data=request.data)
     if serializer.is_valid():
         otp = serializer.validated_data['otp']
-        phone = serializer.validated_data['phone']
-
-        try:
-            user = CustomUser.objects.get(phone=phone, role='customer')
-            email = user.email
-        except CustomUser.DoesNotExist:
-            return Response({'error': 'Customer not found'}, status=status.HTTP_404_NOT_FOUND)
+        email = serializer.validated_data['email']
 
         success, message = verify_otp_util(email, otp)
         if success:
-            return Response({'message': 'Verified successfully', 'role': 'customer'}, status=status.HTTP_200_OK)
+            try:
+                user = CustomUser.objects.get(email=email, role='customer')
+                token = RefreshToken.for_user(user).access_token
+                return Response({'message': 'Verified successfully', 'role': 'customer', 'token': str(token)}, status=status.HTTP_200_OK)
+            except CustomUser.DoesNotExist:
+                return Response({'error': 'Customer not found'}, status=status.HTTP_404_NOT_FOUND)
         else:
             return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -168,7 +168,7 @@ class OrderListCreateView(generics.ListCreateAPIView):
         customer_data = {'phone': self.request.user.phone, 'email': self.request.user.email}
         # Calculate total from items
         items = serializer.validated_data.get('items', [])
-        total = sum(item['price'] * item['quantity'] for item in items)
+        total = sum(item['price'] * item.get('quantity', 1) for item in items)
         table_no = serializer.validated_data.get('table_no') or self.request.data.get('table_no')
         # Generate unique id
         while True:
@@ -195,7 +195,7 @@ class OrderUpdateView(generics.RetrieveUpdateDestroyAPIView):
             if 'items' in self.request.data:
                 # Recalculate total
                 items = self.request.data['items']
-                total = sum(item['price'] * item['quantity'] for item in items)
+                total = sum(item['price'] * item.get('quantity', 1) for item in items)
                 serializer.save(total=total)
             else:
                 serializer.save()
@@ -204,9 +204,9 @@ class OrderUpdateView(generics.RetrieveUpdateDestroyAPIView):
             if 'status' in self.request.data and len(self.request.data) == 1:
                 serializer.save()
             else:
-                raise serializers.ValidationError("Chefs can only update status.")
+                raise PermissionDenied("Chefs can only update status.")
         else:
-            raise serializers.ValidationError("Unauthorized to update orders.")
+            raise PermissionDenied("Unauthorized to update orders.")
 
     def destroy(self, request, *args, **kwargs):
         user = self.request.user
@@ -336,5 +336,35 @@ def get_current_order(request):
         response_data['all_orders'] = all_orders_serializer.data
 
         return Response(response_data)
+    except Exception as e:
+        return Response({'error': 'Database error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def bill_table(request):
+    if request.user.role != 'admin':
+        return Response({'error': 'Only admins can bill tables'}, status=status.HTTP_403_FORBIDDEN)
+
+    table_no = request.data.get('table_no')
+    if not table_no:
+        return Response({'error': 'Table number is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        # Get all unpaid orders for this table
+        orders = Order.objects.filter(table_no=table_no).exclude(status='paid')
+        if not orders.exists():
+            return Response({'error': 'No unpaid orders found for this table'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Mark all orders as paid
+        orders.update(status='paid')
+
+        # Calculate total bill amount
+        total_bill = sum(order.total for order in orders)
+
+        return Response({
+            'message': f'Table {table_no} billed successfully',
+            'total_bill': total_bill,
+            'orders_count': orders.count()
+        }, status=status.HTTP_200_OK)
     except Exception as e:
         return Response({'error': 'Database error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

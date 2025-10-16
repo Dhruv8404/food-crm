@@ -16,4 +16,5 @@ urlpatterns = [
     path('tables/generate/', views.generate_table, name='generate-table'),
     path('tables/verify/', views.verify_table, name='verify-table'),
     path('tables/<str:table_no>/delete/', views.delete_table, name='delete-table'),
+    path('tables/bill/', views.bill_table, name='bill-table'),
 ]

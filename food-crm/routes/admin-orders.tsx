@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { Link } from "react-router-dom"
 import { useApp } from "@/context/app-context"
 import {
@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Trash2, Plus } from "lucide-react"
+import { Trash2, Plus, CreditCard } from "lucide-react"
 import { menuItems } from "@/data/menu"
 
 export default function AdminOrders() {
@@ -25,12 +25,26 @@ export default function AdminOrders() {
   const [editTableNo, setEditTableNo] = useState('')
   const [editItems, setEditItems] = useState<any[]>([])
   const [deletingOrder, setDeletingOrder] = useState<string | null>(null)
+  const [billingCustomer, setBillingCustomer] = useState<string | null>(null)
 
   useEffect(() => {
     fetchOrders()
   }, [fetchOrders])
 
   const sortedOrders = [...state.orders].sort((a, b) => b.createdAt - a.createdAt)
+
+  // Group orders by customer phone
+  const ordersByCustomer = useMemo(() => {
+    const groups: { [key: string]: typeof state.orders } = {}
+    sortedOrders.forEach(order => {
+      const customer = order.customer.phone
+      if (!groups[customer]) {
+        groups[customer] = []
+      }
+      groups[customer].push(order)
+    })
+    return groups
+  }, [sortedOrders])
 
   const handleEditOrder = (orderId: string, currentTableNo: string, currentItems: any[]) => {
     setEditingOrder(orderId)
@@ -118,10 +132,36 @@ export default function AdminOrders() {
     setDeletingOrder(null)
   }
 
+  const handleBillCustomer = async (customerPhone: string) => {
+    setBillingCustomer(customerPhone)
+    try {
+      const response = await fetch('http://127.0.0.1:8000/api/customers/bill/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${state.token}`
+        },
+        body: JSON.stringify({ phone: customerPhone })
+      })
+      if (response.ok) {
+        const data = await response.json()
+        alert(`Customer ${customerPhone} billed successfully! Total: ₹${data.total_bill.toFixed(2)}`)
+        await fetchOrders()
+      } else {
+        const error = await response.json()
+        alert(`Failed to bill customer: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error billing customer:', error)
+      alert('Error billing customer')
+    }
+    setBillingCustomer(null)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Order View</h1>
+        <h1 className="text-2xl font-bold">Customer Billing</h1>
         <Link
           to="/admin"
           className="rounded-md bg-secondary px-4 py-2 text-secondary-foreground hover:bg-secondary/80"
@@ -130,34 +170,68 @@ export default function AdminOrders() {
         </Link>
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-4">
-        {sortedOrders.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No orders yet.</p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Order ID</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Table No</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sortedOrders.map((o) => (
-                <TableRow key={o.id}>
-                  <TableCell>{o.id}</TableCell>
-                  <TableCell>{o.status}</TableCell>
-                  <TableCell>{o.customer.phone} • {o.customer.email}</TableCell>
-                  <TableCell>{o.table_no || 'N/A'}</TableCell>
-                  <TableCell>₹{o.total.toFixed(2)}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Dialog open={editingOrder === o.id} onOpenChange={(open) => !open && setEditingOrder(null)}>
+      <div className="space-y-6">
+        {Object.entries(ordersByCustomer).map(([customerPhone, orders]) => {
+          const totalAmount = orders.reduce((sum, order) => sum + order.total, 0)
+          const unpaidOrders = orders.filter(order => order.status !== 'paid')
+          const customerEmail = orders[0]?.customer.email || ''
+
+          return (
+            <div key={customerPhone} className="rounded-xl border border-border bg-card p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-xl font-semibold">Customer: {customerPhone}</h2>
+                  <p className="text-sm text-gray-600">{customerEmail}</p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-lg font-bold">Total: ₹{totalAmount.toFixed(2)}</span>
+                  {unpaidOrders.length > 0 && (
+                    <Button
+                      onClick={() => handleBillCustomer(customerPhone)}
+                      disabled={billingCustomer === customerPhone}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      <CreditCard className="w-4 h-4 mr-2" />
+                      {billingCustomer === customerPhone ? 'Billing...' : 'Bill Customer'}
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {orders.map((order) => (
+                  <div key={order.id} className="border rounded-lg p-4 bg-gray-50">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-4">
+                        <span className="font-medium">Order #{order.id}</span>
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          order.status === 'paid' ? 'bg-green-100 text-green-800' :
+                          order.status === 'preparing' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-blue-100 text-blue-800'
+                        }`}>
+                          {order.status}
+                        </span>
+                      </div>
+                      <span className="font-semibold">₹{order.total.toFixed(2)}</span>
+                    </div>
+
+                    <div className="text-sm text-gray-600 mb-2">
+                      Customer: {order.customer.phone} • {order.customer.email}
+                    </div>
+
+                    <div className="space-y-1">
+                      {order.items.map((item, index) => (
+                        <div key={index} className="flex justify-between text-sm">
+                          <span>{item.name} × {item.qty}</span>
+                          <span>₹{(item.price * item.qty).toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex gap-2 mt-4">
+                      <Dialog open={editingOrder === order.id} onOpenChange={(open) => !open && setEditingOrder(null)}>
                         <DialogTrigger asChild>
-                          <Button size="sm" variant="outline" onClick={() => handleEditOrder(o.id, o.table_no || '', o.items)}>
+                          <Button size="sm" variant="outline" onClick={() => handleEditOrder(order.id, order.table_no || '', order.items)}>
                             Edit
                           </Button>
                         </DialogTrigger>
@@ -227,18 +301,18 @@ export default function AdminOrders() {
                       <Button
                         size="sm"
                         variant="destructive"
-                        onClick={() => handleDeleteOrder(o.id)}
-                        disabled={deletingOrder === o.id}
+                        onClick={() => handleDeleteOrder(order.id)}
+                        disabled={deletingOrder === order.id}
                       >
-                        {deletingOrder === o.id ? 'Deleting...' : 'Delete'}
+                        {deletingOrder === order.id ? 'Deleting...' : 'Delete'}
                       </Button>
                     </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )

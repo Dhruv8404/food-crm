@@ -1,5 +1,4 @@
-- [x] Add confetti animation on load for celebration in order-success.tsx
-- [x] Implement Pay Bill button to simulate payment and mark order as paid via API
-- [ ] Add estimated preparation time display
-- [ ] Improve UI responsiveness and animations
-- [ ] Add link to track order status
+- [x] Modify food-crm/routes/admin-dashboard.tsx to use Table component for displaying generated QR codes
+- [x] Add columns: Table No, Hash, URL, QR Code, Actions (Test, Download, Edit, Delete)
+- [x] Ensure all actions work properly
+- [x] Test the changes by running the frontend

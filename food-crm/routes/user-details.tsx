@@ -51,13 +51,13 @@ export default function UserDetailsPage() {
 
     try {
       // Verify OTP and login
-      const response = await fetch("http://127.0.0.1:8000/api/auth/verify-otp/", {
+      const response = await fetch("http://127.0.0.1:8000/api/auth/customer/verify/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          phone,
+          email,
           otp,
         }),
       })

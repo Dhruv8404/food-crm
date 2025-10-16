@@ -4,6 +4,16 @@ import { useState, useRef } from "react"
 import QRCode from "react-qr-code"
 import html2canvas from "html2canvas"
 import { useApp } from "@/context/app-context"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 
 export default function AdminDashboard() {
   const { state, markPaid } = useApp()
@@ -142,73 +152,71 @@ export default function AdminDashboard() {
           </button>
         </div>
         {qrData.length > 0 && (
-          <div className="mt-4 space-y-4">
-            {qrData.map((qr, index) => (
-              <div key={index} className="border border-border p-4 rounded">
-                <div className="text-sm">
-                  <strong>Table No:</strong> {qr.table_no}
-                </div>
-                <div className="text-sm">
-                  <strong>Hash:</strong> {qr.hash}
-                </div>
-                <div className="text-sm">
-                  <strong>URL:</strong> {qr.url}
-                </div>
-                <div ref={(el) => { qrRefs.current[index] = el }} className="flex justify-center">
-                  <QRCode value={qr.url} size={128} />
-                </div>
-                <div className="flex justify-center mt-4 gap-2">
-                  <button
-                    onClick={() => window.open(qr.url, '_blank')}
-                    className="rounded-md bg-secondary px-4 py-2 text-secondary-foreground"
-                  >
-                    Test QR
-                  </button>
-                  <button
-                    onClick={() => downloadQR(index)}
-                    className="rounded-md bg-secondary px-4 py-2 text-secondary-foreground"
-                  >
-                    Download QR
-                  </button>
-                  <button
-                    onClick={() => handleEditTable(qr.table_no)}
-                    className="rounded-md bg-blue-500 px-4 py-2 text-white"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => deleteTable(qr.table_no, index)}
-                    className="rounded-md bg-red-500 px-4 py-2 text-white"
-                  >
-                    Delete
-                  </button>
-                </div>
-                {editingTable === qr.table_no && (
-                  <div className="mt-4 p-4 border border-border rounded">
-                    <input
-                      value={editTableNo}
-                      onChange={(e) => setEditTableNo(e.target.value)}
-                      placeholder="New table number"
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-ring"
-                    />
-                    <div className="flex gap-2 mt-2">
-                      <button
-                        onClick={saveEditTable}
-                        className="rounded-md bg-primary px-4 py-2 text-primary-foreground"
-                      >
-                        Save
-                      </button>
-                      <button
-                        onClick={() => setEditingTable(null)}
-                        className="rounded-md bg-secondary px-4 py-2 text-secondary-foreground"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
+          <div className="mt-4">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Table No</TableHead>
+                  <TableHead>Hash</TableHead>
+                  <TableHead>URL</TableHead>
+                  <TableHead>QR Code</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {qrData.map((qr, index) => (
+                  <TableRow key={index}>
+                    <TableCell>
+                      {editingTable === qr.table_no ? (
+                        <Input
+                          value={editTableNo}
+                          onChange={(e) => setEditTableNo(e.target.value)}
+                          placeholder="New table number"
+                        />
+                      ) : (
+                        qr.table_no
+                      )}
+                    </TableCell>
+                    <TableCell>{qr.hash}</TableCell>
+                    <TableCell>{qr.url}</TableCell>
+                    <TableCell>
+                      <div ref={(el) => { qrRefs.current[index] = el }} className="flex justify-center">
+                        <QRCode value={qr.url} size={64} />
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        {editingTable === qr.table_no ? (
+                          <>
+                            <Button size="sm" onClick={saveEditTable}>
+                              Save
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => setEditingTable(null)}>
+                              Cancel
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button size="sm" variant="outline" onClick={() => window.open(qr.url, '_blank')}>
+                              Test
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => downloadQR(index)}>
+                              Download
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => handleEditTable(qr.table_no)}>
+                              Edit
+                            </Button>
+                            <Button size="sm" variant="destructive" onClick={() => deleteTable(qr.table_no, index)}>
+                              Delete
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         )}
       </div>
