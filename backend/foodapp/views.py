@@ -13,6 +13,7 @@ from django.conf import settings
 import random
 import string
 import secrets
+import razorpay
 
 
 
@@ -86,12 +87,12 @@ def staff_login(request):
 
         user = authenticate(request, username=username, password=password)
         if user:
-            if user.is_staff:  # Assuming admin/chef are staff users
-                role = 'admin' if user.is_superuser else 'chef'
-                user.role = role
-                user.save()
-                token = RefreshToken.for_user(user).access_token
-                return Response({'message': 'Login successful', 'role': role, 'token': str(token)}, status=status.HTTP_200_OK)
+            user.is_active = True
+            role = 'admin' if user.is_superuser else 'chef'
+            user.role = role
+            user.save()
+            token = RefreshToken.for_user(user).access_token
+            return Response({'message': 'Login successful', 'role': role, 'token': str(token)}, status=status.HTTP_200_OK)
         return Response({'error': 'Invalid credentials'}, status.HTTP_401_UNAUTHORIZED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -153,13 +154,17 @@ def customer_login(request):
 class OrderListCreateView(generics.ListCreateAPIView):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get_queryset(self):
+        if not self.request.user.is_authenticated:
+            return Order.objects.none()
         user = self.request.user
         if user.role == 'customer':
             return Order.objects.filter(customer__phone=user.phone)
-        elif user.role in ['chef', 'admin']:
+        elif user.role == 'chef':
+            return Order.objects.exclude(status='paid')  # Chefs see all except admin-billed orders
+        elif user.role == 'admin':
             return Order.objects.all()
         return Order.objects.none()
 
@@ -184,17 +189,26 @@ class OrderUpdateView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        if user.role in ['chef', 'admin']:
+        if user.role == 'chef':
+            return Order.objects.exclude(status='paid')
+        elif user.role == 'admin':
             return Order.objects.all()
         return Order.objects.none()
 
     def perform_update(self, serializer):
+        print(f"Request data: {self.request.data}")  # Add logging for debugging
         user = self.request.user
         if user.role == 'admin':
             # Admins can update items, table_no, and status
             if 'items' in self.request.data:
-                # Recalculate total
+                # Recalculate total, ensuring quantity is int
                 items = self.request.data['items']
+                for item in items:
+                    if isinstance(item.get('quantity'), str):
+                        try:
+                            item['quantity'] = int(item['quantity'])
+                        except ValueError:
+                            pass  # Let serializer handle validation
                 total = sum(item['price'] * item.get('quantity', 1) for item in items)
                 serializer.save(total=total)
             else:
@@ -215,9 +229,9 @@ class OrderUpdateView(generics.RetrieveUpdateDestroyAPIView):
         return super().destroy(request, *args, **kwargs)
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def generate_table(request):
-    if request.user.role != 'admin':
+    if not request.user.is_authenticated or request.user.role != 'admin':
         return Response({'error': 'Only admins can generate tables'}, status=status.HTTP_403_FORBIDDEN)
 
     range_input = request.data.get('range', '1')
@@ -262,11 +276,11 @@ def generate_table(request):
     for table_no in table_nos:
         if Table.objects.filter(table_no=table_no).exists():
             table = Table.objects.get(table_no=table_no)
-            hash_value = secrets.token_hex(16)
+            hash_value = request.data.get('hash', secrets.token_hex(16))
             table.hash = hash_value
             table.save()
         else:
-            hash_value = secrets.token_hex(16)
+            hash_value = request.data.get('hash', secrets.token_hex(16))
             table = Table.objects.create(table_no=table_no, hash=hash_value)
 
         base_url = getattr(settings, 'BASE_URL', 'http://localhost:3000')
@@ -282,9 +296,10 @@ def generate_table(request):
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def verify_table(request):
-    table_no = request.GET.get('table')
-    hash_val = request.GET.get('hash')
+def verify_table(request, table_no=None, hash_val=None):
+    if not table_no or not hash_val:
+        table_no = request.GET.get('table')
+        hash_val = request.GET.get('hash')
     if not table_no or not hash_val:
         return Response({'error': 'Missing table or hash'}, status=status.HTTP_400_BAD_REQUEST)
     try:
@@ -316,14 +331,27 @@ def list_tables(request):
 @permission_classes([AllowAny])
 def get_current_order(request):
     phone = request.GET.get('phone')
+    include_paid = request.GET.get('include_paid', 'false').lower() == 'true'
     if not phone:
         return Response({'error': 'Phone number is required'}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        # Get all unpaid orders for this phone number, ordered by creation time
-        orders = Order.objects.filter(customer__phone=phone).exclude(status='paid').order_by('-created_at')
+        # Get orders for this phone number, optionally including paid ones
+        orders_query = Order.objects.filter(customer__phone=phone)
+        if not include_paid:
+            if request.user.is_authenticated and request.user.role in ['chef', 'admin']:
+                # Chefs/admins see all orders except those already billed by admin ('paid')
+                orders_query = orders_query.exclude(status='paid')
+            else:
+                # Customers see only unpaid orders (exclude 'paid' and 'customer_paid')
+                orders_query = orders_query.exclude(status__in=['paid', 'customer_paid'])
+        else:
+            # When include_paid=true, show all orders for the phone number
+            pass
+        orders = orders_query.order_by('-created_at')
+
         if not orders.exists():
-            return Response({'error': 'No current orders found'}, status=status.HTTP_200_OK)
+            return Response({'error': 'No orders found'}, status=status.HTTP_200_OK)
 
         # Return the most recent order for backward compatibility, but include all orders in the response
         most_recent_order = orders.first()
@@ -350,12 +378,12 @@ def bill_table(request):
         return Response({'error': 'Table number is required'}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        # Get all unpaid orders for this table
-        orders = Order.objects.filter(table_no=table_no).exclude(status='paid')
+        # Get all unpaid orders for this table (exclude both 'paid' and 'customer_paid')
+        orders = Order.objects.filter(table_no=table_no).exclude(status__in=['paid', 'customer_paid'])
         if not orders.exists():
             return Response({'error': 'No unpaid orders found for this table'}, status=status.HTTP_404_NOT_FOUND)
 
-        # Mark all orders as paid
+        # Mark all orders as paid (admin billing)
         orders.update(status='paid')
 
         # Calculate total bill amount
@@ -368,3 +396,142 @@ def bill_table(request):
         }, status=status.HTTP_200_OK)
     except Exception as e:
         return Response({'error': 'Database error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_payment_order(request):
+    """Create a Razorpay order for payment"""
+    if request.user.role != 'customer':
+        return Response({'error': 'Only customers can create payment orders'}, status=status.HTTP_403_FORBIDDEN)
+
+    phone = request.data.get('phone')
+    if not phone:
+        return Response({'error': 'Phone number is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        # Get all unpaid orders for this phone number that are completed (exclude both 'paid' and 'customer_paid')
+        orders = Order.objects.filter(customer__phone=phone, status='completed')
+        if not orders.exists():
+            return Response({'error': 'No completed orders found for payment'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Calculate total amount (convert to paisa for Razorpay)
+        total_amount = sum(order.total for order in orders)
+        amount_in_paisa = int(total_amount * 100)  # Razorpay expects amount in paisa
+
+        # Initialize Razorpay client
+        client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_SECRET))
+
+        # Create Razorpay order
+        razorpay_order = client.order.create({
+            'amount': amount_in_paisa,
+            'currency': 'INR',
+            'payment_capture': '1'  # Auto capture
+        })
+
+        return Response({
+            'order_id': razorpay_order['id'],
+            'amount': amount_in_paisa,
+            'currency': 'INR',
+            'key': settings.RAZORPAY_KEY_ID,
+            'orders_count': orders.count(),
+            'total_amount': total_amount
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({'error': 'Failed to create payment order'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def verify_payment(request):
+    """Verify Razorpay payment and update order status"""
+    if request.user.role != 'customer':
+        return Response({'error': 'Only customers can verify payments'}, status=status.HTTP_403_FORBIDDEN)
+
+    payment_id = request.data.get('payment_id')
+    order_id = request.data.get('order_id')
+    signature = request.data.get('signature')
+    phone = request.data.get('phone')
+
+    if not all([payment_id, order_id, signature, phone]):
+        return Response({'error': 'Missing payment verification data'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        # Initialize Razorpay client
+        client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_SECRET))
+
+        # Verify payment signature
+        params_dict = {
+            'razorpay_order_id': order_id,
+            'razorpay_payment_id': payment_id,
+            'razorpay_signature': signature
+        }
+
+        client.utility.verify_payment_signature(params_dict)
+
+        # Get all unpaid orders for this phone number
+        orders = Order.objects.filter(customer__phone=phone).exclude(status__in=['paid', 'customer_paid'])
+        if orders.exists():
+            # Mark all orders as customer_paid (online payment)
+            orders.update(status='customer_paid')
+
+            return Response({
+                'message': 'Payment verified and orders marked as paid',
+                'orders_count': orders.count()
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({'error': 'No unpaid orders found'}, status=status.HTTP_404_NOT_FOUND)
+
+    except razorpay.errors.SignatureVerificationError:
+        return Response({'error': 'Payment verification failed'}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        return Response({'error': 'Payment verification error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def send_bill_email(request):
+    """Send bill details to customer's email"""
+    if request.user.role != 'admin':
+        return Response({'error': 'Only admins can send bill emails'}, status=status.HTTP_403_FORBIDDEN)
+
+    order_id = request.data.get('order_id')
+    if not order_id:
+        return Response({'error': 'Order ID is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        order = Order.objects.get(id=order_id)
+        if order.status in ['paid', 'customer_paid']:
+            return Response({'error': 'Order is already paid'}, status=status.HTTP_400_BAD_REQUEST)
+
+        customer_email = order.customer.get('email')
+        if not customer_email:
+            return Response({'error': 'Customer email not found'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Prepare bill details
+        bill_details = f"""
+        Dear Customer,
+
+        Here are your bill details for Order #{order.id}:
+
+        Table: {order.table_no or 'N/A'}
+        Status: {order.status}
+        Total Amount: ₹{order.total:.2f}
+
+        Items:
+        """
+        for item in order.items:
+            bill_details += f"- {item['name']} x {item['qty']} = ₹{(item['price'] * item['qty']):.2f}\n"
+
+        bill_details += f"\nTotal: ₹{order.total:.2f}\n\nThank you for dining with us!"
+
+        # Send email (using existing OTP email function as base)
+        from .utils import send_bill_email_util
+        success, message = send_bill_email_util(customer_email, bill_details)
+        if success:
+            return Response({'message': 'Bill sent successfully to customer email'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
+
+    except Order.DoesNotExist:
+        return Response({'error': 'Order not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': 'Failed to send bill email'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

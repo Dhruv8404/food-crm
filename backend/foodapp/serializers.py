@@ -13,6 +13,7 @@ class OrderSerializer(serializers.ModelSerializer):
         read_only_fields = ['total', 'id', 'customer']
 
     def validate(self, data):
+        print("Validating order data:", data)  # Add logging for debugging
         # Only validate items if items are being updated (not for partial updates with just status)
         if 'items' in data:
             items = data.get('items', [])
@@ -25,9 +26,24 @@ class OrderSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError("Each item must be a dictionary.")
                 if 'id' not in item:
                     raise serializers.ValidationError("Each item must have an 'id' field.")
-                if 'price' not in item:
-                    raise serializers.ValidationError("Each item must have a 'price' field.")
-                if not isinstance(item.get('quantity', 1), int) or item.get('quantity', 1) < 1:
+                # Fetch price and name if not provided
+                if 'price' not in item or 'name' not in item:
+                    try:
+                        menu_item = MenuItem.objects.get(id=item['id'])
+                        if 'price' not in item:
+                            item['price'] = menu_item.price
+                        if 'name' not in item:
+                            item['name'] = menu_item.name
+                    except MenuItem.DoesNotExist:
+                        raise serializers.ValidationError(f"Menu item with id {item['id']} does not exist.")
+                quantity = item.get('quantity', 1)
+                if isinstance(quantity, str):
+                    try:
+                        quantity = int(quantity)
+                        item['quantity'] = quantity
+                    except ValueError:
+                        raise serializers.ValidationError("Quantity must be a valid integer.")
+                if not isinstance(quantity, int) or quantity < 1:
                     raise serializers.ValidationError("Quantity must be a positive integer.")
 
         status = data.get('status')

@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function AuthPage() {
-  const { loginCustomer, state, setPendingOrder } = useApp()
+  const { loginCustomer, state, setPendingOrder, clearCart } = useApp()
   const [phone, setPhone] = useState("")
   const [email, setEmail] = useState("")
   const [sent, setSent] = useState(false)
@@ -105,6 +105,8 @@ export default function AuthPage() {
             })
           })
           if (orderRes.ok) {
+            // Clear the cart after successful order placement
+            clearCart()
             setPendingOrder(null)
             navigate("/order-success", { replace: true })
           } else {
@@ -125,7 +127,8 @@ export default function AuthPage() {
   }
 
   return (
-    <section className="mx-auto max-w-md">
+    <section className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-8 px-4">
+      <div className="mx-auto max-w-md">
       <h1 className="text-2xl font-semibold">Customer Verification</h1>
       <p className="text-sm text-muted-foreground">
         {state.pendingOrder ? "Verify your details to complete the order." : "Enter phone and email to receive OTP."}
@@ -195,6 +198,7 @@ export default function AuthPage() {
             </Button>
           </>
         )}
+      </div>
       </div>
     </section>
   )

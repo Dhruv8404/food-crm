@@ -165,3 +165,7 @@ SIMPLE_JWT = {
 
 # Base URL for QR generation
 BASE_URL = config('BASE_URL', default='http://localhost:3000')
+
+# Razorpay settings
+RAZORPAY_KEY_ID = config('RAZORPAY_KEY_ID', default='rzp_test_hf54kCj6NjigUj')
+RAZORPAY_SECRET = config('RAZORPAY_SECRET', default='GmCuH0pPD5BS582jPdhzDycp')

@@ -12,8 +12,11 @@ import UserDetailsPage from "@/routes/user-details"
 import CustomerDashboard from "@/routes/customer-dashboard"
 import ChefDashboard from "@/routes/chef-dashboard"
 import AdminDashboard from "@/routes/admin-dashboard"
+import AdminMenu from "@/routes/admin-menu"
+import AdminQR from "@/routes/admin-qr"
 import AdminOrders from "@/routes/admin-orders"
 import AdminPrepare from "@/routes/admin-prepare"
+import AdminKitchen from "@/routes/admin-kitchen"
 import BillingPage from "@/routes/billing-page"
 import LoginPage from "@/routes/login-page"
 import ProtectedRoute from "@/components/protected-route"
@@ -28,6 +31,7 @@ function AppContentInner() {
           <Routes>
             <Route path="/" element={<ScanPage />} />
             <Route path="/:hash/:table" element={<ScanPage />} />
+            <Route path="/table/:table" element={<ScanPage />} />
             <Route path="/menu" element={<MenuPage />} />
             <Route path="/cart" element={<CartPage />} />
             <Route path="/auth" element={<AuthPage />} />
@@ -78,6 +82,30 @@ function AppContentInner() {
               element={
                 <ProtectedRoute roles={["admin"]}>
                   <AdminPrepare />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/menu"
+              element={
+                <ProtectedRoute roles={["admin"]}>
+                  <AdminMenu />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/qr"
+              element={
+                <ProtectedRoute roles={["admin"]}>
+                  <AdminQR />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/kitchen"
+              element={
+                <ProtectedRoute roles={["admin"]}>
+                  <AdminKitchen />
                 </ProtectedRoute>
               }
             />

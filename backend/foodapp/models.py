@@ -49,11 +49,12 @@ class Order(models.Model):
         ('preparing', 'Preparing'),
         ('completed', 'Completed'),
         ('paid', 'Paid'),
+        ('customer_paid', 'Customer Paid'),
     ]
     id = models.CharField(max_length=20, primary_key=True)
     items = models.JSONField()  # list of dicts: [{'id': 'm1', 'name': '...', 'price': 8.5, 'qty': 1}, ...]
     total = models.FloatField()
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='pending')
     customer = models.JSONField()  # {'phone': '...', 'email': '...'}
     table_no = models.CharField(max_length=10, blank=True, null=True)  # e.g., 'T1'
     created_at = models.DateTimeField(auto_now_add=True)

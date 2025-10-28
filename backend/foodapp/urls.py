@@ -15,6 +15,10 @@ urlpatterns = [
     path('tables/', views.list_tables, name='list-tables'),
     path('tables/generate/', views.generate_table, name='generate-table'),
     path('tables/verify/', views.verify_table, name='verify-table'),
+    path('tables/verify/<str:table_no>/<str:hash_val>/', views.verify_table, name='verify-table-params'),
     path('tables/<str:table_no>/delete/', views.delete_table, name='delete-table'),
     path('tables/bill/', views.bill_table, name='bill-table'),
+    path('payments/create/', views.create_payment_order, name='create-payment-order'),
+    path('payments/verify/', views.verify_payment, name='verify-payment'),
+    path('send_bill_email/', views.send_bill_email, name='send-bill-email'),
 ]
