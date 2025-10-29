@@ -276,9 +276,12 @@ def generate_table(request):
     for table_no in table_nos:
         if Table.objects.filter(table_no=table_no).exists():
             table = Table.objects.get(table_no=table_no)
-            hash_value = request.data.get('hash', secrets.token_hex(16))
-            table.hash = hash_value
-            table.save()
+            if 'hash' in request.data:
+                hash_value = request.data['hash']
+                table.hash = hash_value
+                table.save()
+            else:
+                hash_value = table.hash  # Keep existing hash
         else:
             hash_value = request.data.get('hash', secrets.token_hex(16))
             table = Table.objects.create(table_no=table_no, hash=hash_value)
@@ -324,8 +327,16 @@ def delete_table(request, table_no):
 @permission_classes([AllowAny])
 def list_tables(request):
     tables = Table.objects.filter(active=True)
-    serializer = TableSerializer(tables, many=True)
-    return Response(serializer.data)
+    base_url = getattr(settings, 'BASE_URL', 'http://localhost:3000')
+    table_data = []
+    for table in tables:
+        url = f"{base_url}/{table.hash}/{table.table_no}"
+        table_data.append({
+            'table_no': table.table_no,
+            'hash': table.hash,
+            'url': url
+        })
+    return Response(table_data)
 
 @api_view(['GET'])
 @permission_classes([AllowAny])

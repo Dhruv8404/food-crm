@@ -499,19 +499,25 @@ export default function MenuPage() {
                         {menuItem.description}
                       </CardDescription>
                     </div>
-                    <motion.div
-                      whileTap={{ scale: 0.95 }}
-                      className="mt-4"
-                    >
-                      <Button
-                        onClick={() => addToCart(menuItem.id)}
-                        className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 border-0 font-semibold py-3 rounded-xl"
-                        size="lg"
+                      <motion.div
+                        whileTap={{ scale: 0.95 }}
+                        className="mt-4"
                       >
-                        <ShoppingCart className="w-4 h-4 mr-2" />
-                        Add to Cart
-                      </Button>
-                    </motion.div>
+                        <Button
+                          onClick={() => {
+                            if (!state.currentTable) {
+                              navigate('/')
+                            } else {
+                              addToCart(menuItem.id)
+                            }
+                          }}
+                          className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 border-0 font-semibold py-3 rounded-xl"
+                          size="lg"
+                        >
+                          <ShoppingCart className="w-4 h-4 mr-2" />
+                          Add to Cart
+                        </Button>
+                      </motion.div>
                   </CardContent>
                 </motion.div>
               </Card>

@@ -1,17 +1,11 @@
-# QR Code Management Task
+# TODO: Fix QR Code Issue After Reload
 
-## Completed Tasks
-- [x] Analyze existing scan-page.tsx and admin-qr.tsx code
-- [x] Create comprehensive improvement plan
-- [x] Get user approval for plan
-- [x] Rewrite scan-page.tsx with improved structure, error handling, and UI
-- [x] Rewrite admin-qr.tsx with modular functions and better state management
-- [x] Delete all existing QR code records from backend
-- [x] Generate new QR codes for tables 1-10
+## Steps to Complete
 
-## Pending Tasks
-- [x] Test the new implementation
+- [ ] Update `list_tables` view in `backend/foodapp/views.py` to construct and include the `url` field for each table
+- [ ] Test by reloading admin QR page to verify QR codes display and links work
 
-## Notes
-- Menu page changes completed - orders can now be placed without table number requirement
-- Focus back on QR code management task
+## Progress Tracking
+
+- Started: [Current Date/Time]
+- Completed: [Date/Time when done]
