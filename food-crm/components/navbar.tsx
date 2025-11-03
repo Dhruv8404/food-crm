@@ -30,7 +30,7 @@ export default function Navbar() {
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <Link to="/" className="flex items-center gap-2 font-semibold">
           <FaUtensils className="text-primary" />
-          <span>Food CRM</span>
+          <span>Restan food restaurent</span>
         </Link>
 
         <nav className="flex gap-2">
