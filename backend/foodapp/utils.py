@@ -1,14 +1,11 @@
 import random
 from datetime import datetime, timedelta
-import smtplib
-from email.message import EmailMessage
+from django.core.mail import send_mail
 from django.conf import settings
 from django.utils import timezone
 from .models import OTP
 
-# Configuration
-SENDER_EMAIL = "pateldhruv8404@gmail.com"   # replace with your Gmail
-APP_PASSWORD = "gdkxpyipsqzhhzex"       # your Gmail app password
+# Email configuration is handled in Django settings
 
 def generate_otp(length=6):
     """Generate a random numeric OTP."""
@@ -23,11 +20,8 @@ def send_otp_email(email):
     OTP.objects.filter(email=email).delete()  # Remove old OTPs for this email
     otp_obj = OTP.objects.create(email=email, otp=otp, expires_at=expiry)
 
-    msg = EmailMessage()
-    msg['Subject'] = "Your OTP Code"
-    msg['From'] = SENDER_EMAIL
-    msg['To'] = email
-    msg.set_content(f"""
+    subject = "Your OTP Code"
+    message = f"""
 Hello,
 
 Your OTP is: {otp}
@@ -36,14 +30,16 @@ It will expire in 5 minutes.
 
 Best regards,
 Your OTP Verification System
-""")
+"""
 
     try:
-        with smtplib.SMTP("smtp.gmail.com", 587) as server:
-            server.starttls()
-            server.login(SENDER_EMAIL, APP_PASSWORD)
-            server.send_message(msg)
-
+        send_mail(
+            subject,
+            message,
+            settings.EMAIL_HOST_USER,
+            [email],
+            fail_silently=False,
+        )
         print(f"✅ OTP sent successfully to {email}: {otp}")
         return True, "OTP sent successfully."
     except Exception as e:
@@ -67,18 +63,16 @@ def verify_otp(email, entered_otp):
 
 def send_bill_email_util(email, bill_details):
     """Send bill details to the specified email address."""
-    msg = EmailMessage()
-    msg['Subject'] = "Your Bill Details"
-    msg['From'] = SENDER_EMAIL
-    msg['To'] = email
-    msg.set_content(bill_details)
+    subject = "Your Bill Details"
 
     try:
-        with smtplib.SMTP("smtp.gmail.com", 587) as server:
-            server.starttls()
-            server.login(SENDER_EMAIL, APP_PASSWORD)
-            server.send_message(msg)
-
+        send_mail(
+            subject,
+            bill_details,
+            settings.EMAIL_HOST_USER,
+            [email],
+            fail_silently=False,
+        )
         print(f"✅ Bill sent successfully to {email}")
         return True, "Bill sent successfully."
     except Exception as e:
