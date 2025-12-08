@@ -424,10 +424,10 @@ def create_payment_order(request):
         return Response({'error': 'Phone number is required'}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        # Get all unpaid orders for this phone number that are completed (exclude both 'paid' and 'customer_paid')
-        orders = Order.objects.filter(customer__phone=phone, status='completed')
+        # Get all unpaid orders for this phone number that are ready for payment (ready or completed status)
+        orders = Order.objects.filter(customer__phone=phone, status__in=['ready', 'completed'])
         if not orders.exists():
-            return Response({'error': 'No completed orders found for payment'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'No orders ready for payment. Please wait for your order to be prepared.'}, status=status.HTTP_404_NOT_FOUND)
 
         # Calculate total amount (convert to paisa for Razorpay)
         total_amount = sum(order.total for order in orders)

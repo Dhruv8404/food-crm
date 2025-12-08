@@ -77,8 +77,10 @@ export default function OrderSuccessPage() {
               navigate('/menu')
             }
           } else {
-            const hasCompletedOrders = unpaidData.all_orders ? unpaidData.all_orders.some((order: any) => order.status === 'completed') : unpaidData.status === 'completed'
-            setHasUnpaidOrders(hasCompletedOrders)
+            const hasUnpaid = unpaidData.all_orders
+              ? unpaidData.all_orders.some((order: any) => !['paid', 'customer_paid'].includes(order.status))
+              : !['paid', 'customer_paid'].includes(unpaidData.status)
+            setHasUnpaidOrders(hasUnpaid)
             setOrder(unpaidData)
           }
         } else {
