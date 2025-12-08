@@ -12,6 +12,7 @@ urlpatterns = [
     path('orders/', views.OrderListCreateView.as_view(), name='order-list-create'),
     path('orders/current/', views.get_current_order, name='current-order'),
     path('orders/<str:pk>/', views.OrderUpdateView.as_view(), name='order-update'),
+    path('orders/delete-history/', views.delete_order_history, name='delete-order-history'),
     path('tables/', views.list_tables, name='list-tables'),
     path('tables/generate/', views.generate_table, name='generate-table'),
     path('tables/verify/', views.verify_table, name='verify-table'),

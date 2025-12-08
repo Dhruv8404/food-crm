@@ -11,6 +11,7 @@ import OrderSuccessPage from "@/routes/order-success"
 import UserDetailsPage from "@/routes/user-details"
 import CustomerDashboard from "@/routes/customer-dashboard"
 import ChefDashboard from "@/routes/chef-dashboard"
+import ChefHistory from "@/routes/chef-history"
 import AdminDashboard from "@/routes/admin-dashboard"
 import AdminMenu from "@/routes/admin-menu"
 import AdminQR from "@/routes/admin-qr"
@@ -50,6 +51,14 @@ function AppContentInner() {
               element={
                 <ProtectedRoute roles={["chef"]}>
                   <ChefDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/chef-history"
+              element={
+                <ProtectedRoute roles={["chef"]}>
+                  <ChefHistory />
                 </ProtectedRoute>
               }
             />

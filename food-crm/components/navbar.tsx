@@ -45,6 +45,7 @@ export default function Navbar() {
               {state.user.role !== "admin" && state.user.role !== "chef" && <NavLink to="/">Scan</NavLink>}
               {state.user.role !== "chef" && <NavLink to="/menu">Menu</NavLink>}
               {state.user.role === "chef" && <NavLink to="/chef">Chef</NavLink>}
+              {state.user.role === "chef" && <NavLink to="/chef-history">History</NavLink>}
               {state.user.role === "admin" && <NavLink to="/admin">Dashboard</NavLink>}
               {state.user.role === "admin" && <NavLink to="/admin/orders">Orders</NavLink>}
               {state.user.role === "admin" && <NavLink to="/admin/prepare">Prepare</NavLink>}

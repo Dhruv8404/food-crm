@@ -163,18 +163,22 @@ class OrderListCreateView(generics.ListCreateAPIView):
         if user.role == 'customer':
             return Order.objects.filter(customer__phone=user.phone)
         elif user.role == 'chef':
-            return Order.objects.exclude(status='paid')  # Chefs see all except admin-billed orders
+            return Order.objects.all()  # Chefs see all orders including history
         elif user.role == 'admin':
             return Order.objects.all()
         return Order.objects.none()
 
     def perform_create(self, serializer):
         # Set customer from request.user
-        customer_data = {'phone': self.request.user.phone, 'email': self.request.user.email}
+        table_no = serializer.validated_data.get('table_no') or self.request.data.get('table_no')
+        if self.request.user.role == 'admin' and not table_no:
+            # Admin creating parcel order
+            customer_data = {}
+        else:
+            customer_data = {'phone': self.request.user.phone, 'email': self.request.user.email}
         # Calculate total from items
         items = serializer.validated_data.get('items', [])
         total = sum(item['price'] * item.get('quantity', 1) for item in items)
-        table_no = serializer.validated_data.get('table_no') or self.request.data.get('table_no')
         # Generate unique id
         while True:
             order_id = 'ord_' + ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
@@ -190,7 +194,7 @@ class OrderUpdateView(generics.RetrieveUpdateDestroyAPIView):
     def get_queryset(self):
         user = self.request.user
         if user.role == 'chef':
-            return Order.objects.exclude(status='paid')
+            return Order.objects.all()  # Chefs see all orders including history
         elif user.role == 'admin':
             return Order.objects.all()
         return Order.objects.none()
@@ -546,3 +550,21 @@ def send_bill_email(request):
         return Response({'error': 'Order not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({'error': 'Failed to send bill email'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_order_history(request):
+    """Delete all order history (paid and customer_paid orders)"""
+    if request.user.role not in ['chef', 'admin']:
+        return Response({'error': 'Only chefs and admins can delete order history'}, status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        # Delete all orders with status 'paid' or 'customer_paid'
+        deleted_count, _ = Order.objects.filter(status__in=['paid', 'customer_paid']).delete()
+
+        return Response({
+            'message': f'Successfully deleted {deleted_count} order history records'
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({'error': 'Failed to delete order history'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
