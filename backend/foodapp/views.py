@@ -424,8 +424,8 @@ def create_payment_order(request):
         return Response({'error': 'Phone number is required'}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        # Get all unpaid orders for this phone number that are ready for payment (ready or completed status)
-        orders = Order.objects.filter(customer__phone=phone, status__in=['ready', 'completed'])
+        # Get all unpaid orders for this phone number that are pending for payment
+        orders = Order.objects.filter(customer__phone=phone, status='pending')
         if not orders.exists():
             return Response({'error': 'No orders ready for payment. Please wait for your order to be prepared.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -486,11 +486,11 @@ def verify_payment(request):
         # Get all unpaid orders for this phone number
         orders = Order.objects.filter(customer__phone=phone).exclude(status__in=['paid', 'customer_paid'])
         if orders.exists():
-            # Mark all orders as customer_paid (online payment)
-            orders.update(status='customer_paid')
+            # Keep orders as pending (online payment completed, chefs can see and start preparing)
+            # No status change needed - orders remain pending for chef visibility
 
             return Response({
-                'message': 'Payment verified and orders marked as paid',
+                'message': 'Payment verified successfully',
                 'orders_count': orders.count()
             }, status=status.HTTP_200_OK)
         else:
@@ -559,7 +559,7 @@ def delete_order_history(request):
         return Response({'error': 'Only chefs and admins can delete order history'}, status=status.HTTP_403_FORBIDDEN)
 
     try:
-        # Delete all orders with status 'paid' or 'customer_paid'
+        # Deslete all orders with status 'paid' or 'customer_paid'
         deleted_count, _ = Order.objects.filter(status__in=['paid', 'customer_paid']).delete()
 
         return Response({

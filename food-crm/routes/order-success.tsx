@@ -129,6 +129,18 @@ export default function OrderSuccessPage() {
 
   const handlePayBill = async () => {
     if (!order) return
+
+    // Validate that order is in pending status before allowing payment
+    const orderStatus = order.status || 'pending'
+    if (orderStatus !== 'pending') {
+      alert('Payment is only allowed for orders that are pending. Please wait for your order to be prepared.')
+      return
+    }
+
+    // Add confirmation before proceeding with payment
+    const confirmPayment = window.confirm('Are you sure you want to pay for your order now? This will process the payment for all pending items.')
+    if (!confirmPayment) return
+
     setPaying(true)
     try {
       const phone = state.user.phone
@@ -297,7 +309,7 @@ export default function OrderSuccessPage() {
                   {(() => {
                     const orderStatus = order.status || 'pending'
                     const isPaid = ['paid', 'customer_paid'].includes(orderStatus)
-                    const isCompleted = orderStatus === 'completed' || isPaid
+                    const isCompleted = orderStatus === 'completed' || orderStatus === 'ready'
 
                     let badgeText = "In Progress"
                     let badgeColor = "bg-blue-100 text-blue-700"
@@ -308,6 +320,9 @@ export default function OrderSuccessPage() {
                     } else if (isCompleted) {
                       badgeText = "Ready"
                       badgeColor = "bg-green-100 text-green-700"
+                    } else if (orderStatus === 'customer_paid') {
+                      badgeText = "Paid"
+                      badgeColor = "bg-emerald-100 text-emerald-700"
                     } else if (orderStatus === 'pending') {
                       badgeText = "Order Received"
                       badgeColor = "bg-blue-100 text-blue-700"
@@ -327,15 +342,23 @@ export default function OrderSuccessPage() {
                     {(() => {
                       const orderStatus = order.status || 'pending'
                       const isPaid = ['paid', 'customer_paid'].includes(orderStatus)
+                      const isCompleted = orderStatus === 'completed' || orderStatus === 'ready'
 
-                      // Define steps: Ready step only completes when payment is done
+                      // Define steps based on payment and preparation status
                       let steps
-                      if (isPaid) {
-                        // All steps completed when payment is done
+                      if (isCompleted && isPaid) {
+                        // Order completed and paid
                         steps = [
                           { step: 1, label: "Order Received", icon: CheckCircle, status: "completed", color: "green" },
                           { step: 2, label: "Preparing", icon: ChefHat, status: "completed", color: "blue" },
                           { step: 3, label: "Ready", icon: Package, status: "completed", color: "orange" }
+                        ]
+                      } else if (isPaid) {
+                        // Paid but not completed - show payment as completed, preparing as pending
+                        steps = [
+                          { step: 1, label: "Order Received", icon: CheckCircle, status: "completed", color: "green" },
+                          { step: 2, label: "Payment", icon: CreditCard, status: "completed", color: "emerald" },
+                          { step: 3, label: "Preparing", icon: ChefHat, status: "pending", color: "blue" }
                         ]
                       } else if (orderStatus === 'preparing') {
                         steps = [
@@ -343,7 +366,7 @@ export default function OrderSuccessPage() {
                           { step: 2, label: "Preparing", icon: ChefHat, status: "current", color: "blue" },
                           { step: 3, label: "Ready", icon: Package, status: "pending", color: "orange" }
                         ]
-                      } else if (orderStatus === 'ready' || orderStatus === 'completed') {
+                      } else if (isCompleted) {
                         steps = [
                           { step: 1, label: "Order Received", icon: CheckCircle, status: "completed", color: "green" },
                           { step: 2, label: "Preparing", icon: ChefHat, status: "completed", color: "blue" },
