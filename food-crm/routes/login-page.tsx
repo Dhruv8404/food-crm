@@ -36,7 +36,7 @@ export default function LoginPage() {
       const data = await res.json()
       if (res.ok) {
         loginStaff(role, data.token)
-        navigate(from, { replace: true })
+        navigate(role === 'chef' ? '/chef' : '/admin', { replace: true })
       } else {
         setError("Invalid credentials. Please check your password.")
       }

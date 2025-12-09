@@ -171,11 +171,14 @@ class OrderListCreateView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         # Set customer from request.user
         table_no = serializer.validated_data.get('table_no') or self.request.data.get('table_no')
-        if self.request.user.role == 'admin' and not table_no:
+        if self.request.user.is_authenticated and self.request.user.role == 'admin' and not table_no:
             # Admin creating parcel order
             customer_data = {}
-        else:
+        elif self.request.user.is_authenticated:
             customer_data = {'phone': self.request.user.phone, 'email': self.request.user.email}
+        else:
+            # Unauthenticated user (table order)
+            customer_data = {}
         # Calculate total from items
         items = serializer.validated_data.get('items', [])
         total = sum(item['price'] * item.get('quantity', 1) for item in items)
